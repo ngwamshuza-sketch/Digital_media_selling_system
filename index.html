@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
 <style>
 /* ───────────── RESET & ROOT ───────────── */
 *{margin:0;padding:0;box-sizing:border-box}
@@ -25,104 +27,77 @@
 html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;overflow-x:hidden}
 input,select,textarea,button{font-family:inherit}
 a{text-decoration:none;color:inherit}
-
-/* ───────────── SCROLLBAR ───────────── */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border3);border-radius:4px}
 
 /* ───────────── LAYOUT ───────────── */
 .app{display:flex;height:100vh;overflow:hidden}
+
+/* ───────────── SIDEBAR (drawer style) ───────────── */
 .sidebar{
   width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;
-  z-index:200;transition:width .25s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;height:100vh;
+  z-index:300;
+  transform:translateX(0);
+  transition:transform .28s cubic-bezier(.4,0,.2,1),width .28s cubic-bezier(.4,0,.2,1);
+  flex-shrink:0;
 }
-.sidebar.collapsed{width:60px}
+/* Collapsed = hidden off-screen on mobile; icon-only on desktop */
+.sidebar.collapsed{
+  transform:translateX(-100%);
+}
+/* Overlay that appears behind sidebar when open on mobile */
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;background:#00000070;z-index:299;
+  opacity:0;transition:opacity .28s;pointer-events:none;
+}
+.sidebar-overlay.active{display:block;opacity:1;pointer-events:all}
+
+/* Main area always fills whole width */
 .main-wrap{
-  margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;
-  height:100vh;overflow:hidden;transition:margin-left .25s cubic-bezier(.4,0,.2,1);
+  margin-left:0;flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  transition:margin-left .28s cubic-bezier(.4,0,.2,1);
 }
-.sidebar.collapsed~.main-wrap{margin-left:60px}
+/* On desktop, when sidebar is open, push content right */
+@media(min-width:769px){
+  .main-wrap{margin-left:var(--sidebar)}
+  .sidebar.collapsed{transform:translateX(-100%)}
+  .sidebar.collapsed~.sidebar-overlay{display:none!important}
+  .sidebar:not(.collapsed)~.main-wrap{margin-left:var(--sidebar)}
+  .sidebar.collapsed~.main-wrap{margin-left:0}
+}
 .content-area{flex:1;overflow-y:auto;overflow-x:hidden}
 
-/* ───────────── SIDEBAR ───────────── */
-.logo-area{
-  height:var(--topbar);padding:0 16px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:10px;flex-shrink:0;
-}
-.logo-mark{
-  width:30px;height:30px;border-radius:8px;background:var(--accent);
-  display:flex;align-items:center;justify-content:center;font-weight:800;
-  font-size:14px;color:#000;font-family:var(--fontHead);flex-shrink:0;letter-spacing:-1px;
-}
+/* ───────────── SIDEBAR INTERNALS ───────────── */
+.logo-area{height:var(--topbar);padding:0 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#000;font-family:var(--fontHead);flex-shrink:0;letter-spacing:-1px}
 .logo-name{font-family:var(--fontHead);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;opacity:1;transition:opacity .2s}
 .logo-name em{color:var(--accent);font-style:normal}
-.sidebar.collapsed .logo-name{opacity:0;width:0}
-
 .nav-section{padding:10px 0}
-.nav-label{
-  font-size:10px;text-transform:uppercase;letter-spacing:1.2px;
-  color:var(--text3);padding:6px 16px 4px;white-space:nowrap;
-  overflow:hidden;transition:opacity .2s;
-}
-.sidebar.collapsed .nav-label{opacity:0}
-.nav-item{
-  display:flex;align-items:center;gap:10px;padding:9px 15px;cursor:pointer;
-  color:var(--text2);transition:color .15s,background .15s;position:relative;
-  white-space:nowrap;overflow:hidden;user-select:none;
-}
+.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text3);padding:6px 16px 4px;white-space:nowrap;overflow:hidden;transition:opacity .2s}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 15px;cursor:pointer;color:var(--text2);transition:color .15s,background .15s;position:relative;white-space:nowrap;overflow:hidden;user-select:none}
 .nav-item:hover{color:var(--text);background:var(--bg3)}
 .nav-item.active{color:var(--accent);background:var(--accentDim)}
-.nav-item.active::before{
-  content:'';position:absolute;left:0;top:6px;bottom:6px;
-  width:3px;background:var(--accent);border-radius:0 3px 3px 0;
-}
+.nav-item.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
 .nav-icon{width:20px;text-align:center;font-size:14px;flex-shrink:0}
 .nav-label-text{font-size:13px;font-weight:500;overflow:hidden;flex:1}
-.sidebar.collapsed .nav-label-text{display:none}
-.nav-badge{
-  background:var(--accent);color:#000;font-size:10px;font-weight:700;
-  border-radius:10px;padding:1px 7px;flex-shrink:0;
-}
-.sidebar.collapsed .nav-badge{display:none}
-
+.nav-badge{background:var(--accent);color:#000;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;flex-shrink:0}
 .sidebar-bottom{padding:10px;border-top:1px solid var(--border);flex-shrink:0}
-.user-chip{
-  display:flex;align-items:center;gap:8px;padding:7px 8px;
-  background:var(--bg3);border-radius:var(--radius);cursor:pointer;
-  transition:background .15s;overflow:hidden;
-}
+.user-chip{display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--bg3);border-radius:var(--radius);cursor:pointer;transition:background .15s;overflow:hidden}
 .user-chip:hover{background:var(--bg4)}
-.user-av{
-  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
-  justify-content:center;font-size:11px;font-weight:700;color:#000;
-  font-family:var(--fontHead);flex-shrink:0;
-}
+.user-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;font-family:var(--fontHead);flex-shrink:0}
 .user-meta{overflow:hidden;flex:1}
 .user-name-t{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .user-role-t{font-size:10px;color:var(--accent)}
-.sidebar.collapsed .user-meta{display:none}
 
 /* ───────────── TOPBAR ───────────── */
-.topbar{
-  height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;
-  position:sticky;top:0;z-index:100;
-}
-.icon-btn{
-  width:32px;height:32px;border:1px solid var(--border2);background:transparent;
-  color:var(--text2);border-radius:var(--radiusSm);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:13px;
-  transition:color .15s,border-color .15s,background .15s;flex-shrink:0;
-}
+.topbar{height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:100}
+.icon-btn{width:32px;height:32px;border:1px solid var(--border2);background:transparent;color:var(--text2);border-radius:var(--radiusSm);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:color .15s,border-color .15s,background .15s;flex-shrink:0}
 .icon-btn:hover{color:var(--text);border-color:var(--border3);background:var(--bg3)}
 .search-wrap{flex:1;max-width:380px;position:relative}
-.search-wrap input{
-  width:100%;background:var(--bg3);border:1px solid var(--border2);
-  border-radius:var(--radius);padding:7px 12px 7px 32px;color:var(--text);
-  font-size:12px;outline:none;transition:border-color .15s,background .15s;
-}
+.search-wrap input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:7px 12px 7px 32px;color:var(--text);font-size:12px;outline:none;transition:border-color .15s,background .15s}
 .search-wrap input:focus{border-color:var(--accentBorder);background:var(--bg4)}
 .search-wrap input::placeholder{color:var(--text3)}
 .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none}
@@ -132,27 +107,17 @@ a{text-decoration:none;color:inherit}
 .view-toggle{display:flex;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);overflow:hidden}
 .vt-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:11px;transition:color .15s,background .15s}
 .vt-btn.active{background:var(--accentDim);color:var(--accent)}
-.portal-select{
-  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);
-  color:var(--text2);font-size:11px;padding:5px 8px;outline:none;cursor:pointer;
-}
-.portal-select option{background:var(--bg3)}
 
 /* ───────────── PAGE SHELL ───────────── */
 .page{padding:18px 20px;display:none;min-height:100%}
 .page.active{display:block}
 .ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
-.ph-left{}
 .page-title{font-family:var(--fontHead);font-size:20px;font-weight:700;line-height:1.2}
 .page-sub{font-size:12px;color:var(--text2);margin-top:2px}
 .ph-right{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 
 /* ───────────── BUTTONS ───────────── */
-.btn{
-  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
-  border-radius:var(--radiusSm);font-size:12px;font-weight:500;cursor:pointer;
-  border:none;transition:all .15s;white-space:nowrap;line-height:1;
-}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radiusSm);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;line-height:1}
 .btn i{font-size:11px}
 .btn-primary{background:var(--accent);color:#000}
 .btn-primary:hover{background:var(--accent2)}
@@ -166,13 +131,11 @@ a{text-decoration:none;color:inherit}
 .btn-xs{padding:3px 8px;font-size:10px;border-radius:5px}
 .btn-block{width:100%;justify-content:center}
 .btn-lg{padding:10px 20px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
 
 /* ───────────── STAT CARDS ───────────── */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
-.stat-card{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
-  padding:14px 16px;position:relative;overflow:hidden;
-}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:14px 16px;position:relative;overflow:hidden}
 .stat-glow{position:absolute;top:-10px;right:-10px;width:60px;height:60px;border-radius:50%;opacity:.08}
 .stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
 .stat-val{font-family:var(--fontHead);font-size:22px;font-weight:700;line-height:1}
@@ -201,53 +164,28 @@ a{text-decoration:none;color:inherit}
 
 /* ───────────── MOVIE GRID ───────────── */
 .filter-bar{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-.chip{
-  padding:4px 11px;border-radius:20px;font-size:11px;font-weight:500;
-  border:1px solid var(--border2);color:var(--text2);cursor:pointer;
-  transition:all .15s;background:transparent;
-}
+.chip{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--border2);color:var(--text2);cursor:pointer;transition:all .15s;background:transparent}
 .chip:hover{color:var(--text);border-color:var(--border3)}
 .chip.on{background:var(--accentDim);color:var(--accent);border-color:var(--accentBorder)}
-.sort-sel{
-  margin-left:auto;background:var(--bg3);border:1px solid var(--border2);
-  border-radius:var(--radiusSm);color:var(--text2);font-size:11px;
-  padding:5px 10px;outline:none;cursor:pointer;
-}
+.sort-sel{margin-left:auto;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);color:var(--text2);font-size:11px;padding:5px 10px;outline:none;cursor:pointer}
 .movie-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .movie-grid.cols4{grid-template-columns:repeat(4,1fr)}
-.movie-grid.cols3{grid-template-columns:repeat(3,1fr)}
-.movie-card{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;
-  position:relative;
-}
+.movie-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;position:relative}
 .movie-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px #00000070;border-color:var(--border2)}
 .movie-card:hover .mc-overlay{opacity:1}
-.mc-poster{
-  width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;
-  font-size:32px;color:var(--text4);
-}
-.mc-overlay{
-  position:absolute;inset:0;background:linear-gradient(to top,#000000e0 35%,transparent 65%);
-  opacity:0;transition:opacity .2s;display:flex;flex-direction:column;
-  justify-content:flex-end;padding:8px;
-}
+.mc-poster{width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text4);position:relative;overflow:hidden;background-size:cover;background-position:center}
+.mc-poster img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.mc-poster-icon{position:relative;z-index:1}
+.mc-overlay{position:absolute;inset:0;background:linear-gradient(to top,#000000e0 35%,transparent 65%);opacity:0;transition:opacity .2s;display:flex;flex-direction:column;justify-content:flex-end;padding:8px}
 .mc-btns{display:flex;gap:5px;margin-bottom:5px}
-.mc-btn{
-  flex:1;padding:5px 0;border-radius:5px;border:none;font-size:10px;
-  font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;
-}
+.mc-btn{flex:1;padding:5px 0;border-radius:5px;border:none;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
 .mc-btn-t{background:#ffffff25;color:#fff;backdrop-filter:blur(4px)}
 .mc-btn-t:hover{background:#ffffff35}
 .mc-btn-b{background:var(--accent);color:#000}
 .mc-btn-b:hover{background:var(--accent2)}
-.mc-badge{
-  position:absolute;top:6px;left:6px;font-size:9px;font-weight:700;
-  padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;
-}
+.mc-badge{position:absolute;top:6px;left:6px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px}
 .mc-badge.new{background:var(--green);color:#000}
 .mc-badge.hot{background:var(--red);color:#fff}
-.mc-badge.free{background:var(--purple);color:#fff}
 .mc-info{padding:8px 9px 10px}
 .mc-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;font-family:var(--fontHead)}
 .mc-foot{display:flex;align-items:center;justify-content:space-between}
@@ -255,15 +193,11 @@ a{text-decoration:none;color:inherit}
 .mc-cat{font-size:9px;color:var(--text3);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
 .mc-dj{font-size:9px;color:var(--text3);margin-top:2px}
 
-/* list view */
 .movie-list{display:flex;flex-direction:column;gap:6px}
-.movie-list-item{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  display:flex;align-items:center;gap:12px;padding:10px 12px;cursor:pointer;
-  transition:background .15s,border-color .15s;
-}
+.movie-list-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;gap:12px;padding:10px 12px;cursor:pointer;transition:background .15s,border-color .15s}
 .movie-list-item:hover{background:var(--cardHov);border-color:var(--border2)}
-.ml-thumb{width:40px;height:60px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text4)}
+.ml-thumb{width:40px;height:60px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text4);overflow:hidden;position:relative}
+.ml-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 .ml-info{flex:1;min-width:0}
 .ml-title{font-size:13px;font-weight:600;font-family:var(--fontHead);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ml-meta{font-size:11px;color:var(--text2)}
@@ -272,34 +206,20 @@ a{text-decoration:none;color:inherit}
 
 /* ───────────── TABLES ───────────── */
 .tbl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);overflow:hidden;margin-bottom:16px}
-.tbl-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;
-}
+.tbl-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap}
 .tbl-title{font-family:var(--fontHead);font-size:13px;font-weight:600}
 .tbl-actions{display:flex;gap:6px;align-items:center}
-.tbl-search{
-  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);
-  padding:5px 10px;color:var(--text);font-size:11px;outline:none;width:170px;
-}
+.tbl-search{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);padding:5px 10px;color:var(--text);font-size:11px;outline:none;width:170px}
 .tbl-search::placeholder{color:var(--text3)}
 table{width:100%;border-collapse:collapse}
 thead tr{background:var(--bg3)}
-th{
-  text-align:left;padding:9px 14px;font-size:10px;text-transform:uppercase;
-  letter-spacing:.6px;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border);
-  white-space:nowrap;
-}
+th{text-align:left;padding:9px 14px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap}
 td{padding:9px 14px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tbody tr{transition:background .12s}
 tbody tr:hover td{background:var(--bg3);color:var(--text)}
 .td-main{color:var(--text)!important;font-weight:500}
-.av{
-  width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;
-  justify-content:center;font-size:10px;font-weight:700;margin-right:7px;
-  vertical-align:middle;flex-shrink:0;
-}
+.av{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:7px;vertical-align:middle;flex-shrink:0}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .pill-green{background:var(--greenDim);color:var(--green)}
 .pill-amber{background:var(--accentDim);color:var(--accent)}
@@ -312,46 +232,27 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 .form-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:18px;margin-bottom:14px}
 .form-card-title{font-family:var(--fontHead);font-size:14px;font-weight:600;margin-bottom:14px}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.fgrid.cols1{grid-template-columns:1fr}
-.fgrid.cols3{grid-template-columns:1fr 1fr 1fr}
 .fg{display:flex;flex-direction:column;gap:5px}
 .fg.full{grid-column:1/-1}
 .fg label{font-size:11px;color:var(--text2);font-weight:500}
-.fg input,.fg select,.fg textarea{
-  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);
-  padding:8px 10px;color:var(--text);font-size:12px;outline:none;
-  transition:border-color .15s,background .15s;
-}
+.fg input,.fg select,.fg textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);padding:8px 10px;color:var(--text);font-size:12px;outline:none;transition:border-color .15s,background .15s}
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accentBorder);background:var(--bg4)}
 .fg input::placeholder,.fg textarea::placeholder{color:var(--text3)}
 .fg textarea{resize:vertical;min-height:80px;line-height:1.5}
 .fg select option{background:var(--bg3)}
-.upload-zone{
-  border:1.5px dashed var(--border3);border-radius:var(--radius);
-  padding:22px 16px;text-align:center;cursor:pointer;transition:all .15s;
-  background:var(--bg3);
-}
+.upload-zone{border:1.5px dashed var(--border3);border-radius:var(--radius);padding:22px 16px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg3)}
 .upload-zone:hover{border-color:var(--accent);background:var(--accentDim)}
 .upload-zone i{font-size:24px;color:var(--text3);margin-bottom:7px;display:block}
 .upload-zone p{font-size:12px;color:var(--text2);margin-bottom:3px}
 .upload-zone span{font-size:10px;color:var(--text3)}
+.upload-zone.has-file{border-color:var(--green);background:var(--greenDim)}
+.upload-zone.has-file i,.upload-zone.has-file p{color:var(--green)}
 .form-footer{display:flex;gap:8px;margin-top:4px}
 
 /* ───────────── HERO / BANNER ───────────── */
-.hero-band{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
-  padding:20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;
-  position:relative;overflow:hidden;
-}
-.hero-band::after{
-  content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;
-  border-radius:50%;background:var(--accentDim);pointer-events:none;
-}
-.hero-av{
-  width:48px;height:48px;border-radius:12px;background:var(--accent);
-  display:flex;align-items:center;justify-content:center;font-size:20px;
-  font-weight:800;color:#000;font-family:var(--fontHead);flex-shrink:0;z-index:1;
-}
+.hero-band{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
+.hero-band::after{content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;border-radius:50%;background:var(--accentDim);pointer-events:none}
+.hero-av{width:48px;height:48px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#000;font-family:var(--fontHead);flex-shrink:0;z-index:1}
 .hero-text h2{font-family:var(--fontHead);font-size:18px;font-weight:700;margin-bottom:3px}
 .hero-text p{font-size:12px;color:var(--text2)}
 .hero-actions{margin-left:auto;z-index:1;display:flex;gap:8px;flex-shrink:0}
@@ -365,11 +266,7 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 
 /* ───────────── NOTIF LIST ───────────── */
 .notif-list{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
-.notif-item{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:11px 13px;display:flex;align-items:flex-start;gap:10px;
-  transition:background .15s;
-}
+.notif-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;display:flex;align-items:flex-start;gap:10px;transition:background .15s}
 .notif-item.unread{border-left:3px solid var(--accent)}
 .notif-item:hover{background:var(--bg3)}
 .n-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
@@ -379,57 +276,22 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 .n-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:5px}
 
 /* ───────────── SECTION TITLE ───────────── */
-.sec-title{
-  font-family:var(--fontHead);font-size:13px;font-weight:600;
-  margin-bottom:11px;display:flex;align-items:center;gap:8px;
-}
+.sec-title{font-family:var(--fontHead);font-size:13px;font-weight:600;margin-bottom:11px;display:flex;align-items:center;gap:8px}
 .sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
-.sec-actions{display:flex;gap:6px;align-items:center;margin-left:auto;margin-right:8px}
 
-/* ───────────── FEATURED MOVIE (User Home) ───────────── */
-.featured-wrap{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
-  overflow:hidden;margin-bottom:18px;position:relative;
-}
-.featured-img{
-  width:100%;height:200px;display:flex;align-items:center;justify-content:center;
-  font-size:60px;color:var(--text4);
-}
-.featured-overlay{
-  position:absolute;inset:0;
-  background:linear-gradient(to right,#000000dd 40%,#00000088 70%,transparent);
-  display:flex;align-items:flex-end;padding:20px;
-}
+/* ───────────── FEATURED MOVIE ───────────── */
+.featured-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);overflow:hidden;margin-bottom:18px;position:relative}
+.featured-img{width:100%;height:200px;display:flex;align-items:center;justify-content:center;font-size:60px;color:var(--text4);position:relative;overflow:hidden}
+.featured-img img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.featured-img-icon{position:relative;z-index:1}
+.featured-overlay{position:absolute;inset:0;background:linear-gradient(to right,#000000dd 40%,#00000088 70%,transparent);display:flex;align-items:flex-end;padding:20px}
 .feat-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:5px}
 .feat-title{font-family:var(--fontHead);font-size:20px;font-weight:800;margin-bottom:5px;line-height:1.2}
 .feat-desc{font-size:12px;color:var(--text2);margin-bottom:11px;line-height:1.55;max-width:280px}
 .feat-meta{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.feat-pill{
-  font-size:10px;color:var(--text2);background:var(--bg4);
-  padding:3px 8px;border-radius:5px;border:1px solid var(--border);
-}
+.feat-pill{font-size:10px;color:var(--text2);background:var(--bg4);padding:3px 8px;border-radius:5px;border:1px solid var(--border)}
 
-/* ───────────── AUTH ───────────── */
-.auth-wrap{
-  min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:var(--bg);padding:20px;
-}
-.auth-card{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
-  padding:30px;width:100%;max-width:370px;
-}
-.auth-logo{display:flex;align-items:center;gap:9px;margin-bottom:22px}
-.auth-logo-name{font-family:var(--fontHead);font-size:17px;font-weight:700}
-.auth-logo-name em{color:var(--accent);font-style:normal}
-.auth-h{font-family:var(--fontHead);font-size:19px;font-weight:700;margin-bottom:4px}
-.auth-s{font-size:12px;color:var(--text2);margin-bottom:20px}
-.auth-form{display:flex;flex-direction:column;gap:13px}
-.or-div{text-align:center;font-size:11px;color:var(--text3);position:relative;margin:2px 0}
-.or-div::before,.or-div::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:var(--border)}
-.or-div::before{left:0}.or-div::after{right:0}
-.auth-link{color:var(--accent);cursor:pointer;font-weight:500}
-
-/* ───────────── PAYMENT ───────────── */
+/* ───────────── PAYMENT PAGE ───────────── */
 .pay-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;flex-direction:column;gap:12px}
 .pay-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:22px;width:100%;max-width:360px}
 .pay-h{font-family:var(--fontHead);font-size:16px;font-weight:700;margin-bottom:3px}
@@ -439,10 +301,7 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 .pay-amount-val{font-family:var(--fontHead);font-size:28px;font-weight:800;color:var(--accent)}
 .pay-movie{font-size:11px;color:var(--text2);margin-top:3px}
 .pay-methods{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
-.pay-method{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;
-  border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s;
-}
+.pay-method{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s}
 .pay-method:hover{border-color:var(--border3);background:var(--bg3)}
 .pay-method.sel{border-color:var(--accentBorder);background:var(--accentDim)}
 .pay-m-icon{width:30px;height:30px;border-radius:7px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:14px;border:1px solid var(--border2)}
@@ -450,10 +309,7 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 .pay-note{font-size:10px;color:var(--text3);text-align:center;margin-top:10px}
 
 /* ───────────── DOWNLOAD PAGE ───────────── */
-.dl-success{
-  background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:var(--radius);
-  padding:14px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;
-}
+.dl-success{background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px}
 .dl-success i{color:var(--green);font-size:18px;flex-shrink:0}
 .dl-success p{font-size:12px;line-height:1.5}
 
@@ -462,132 +318,527 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 .st-tab{padding:7px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .15s}
 .st-tab.active{background:var(--accentDim);color:var(--accent)}
 
+/* ───────────── TOAST ───────────── */
+#toast{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-item{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;font-size:12px;color:var(--text);max-width:280px;box-shadow:0 8px 24px #00000060;animation:slideIn .3s ease;display:flex;align-items:center;gap:8px}
+.toast-item.success{border-color:#3ecb8a40;background:#0e1e18}
+.toast-item.error{border-color:#e0555540;background:#1e0e0e}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ───────────── LOADING OVERLAY ───────────── */
+#loader{position:fixed;inset:0;background:var(--bg);z-index:9998;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loader-spin{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-txt{font-size:12px;color:var(--text3)}
+
+/* ───────────── AUTH MODAL ───────────── */
+.modal-backdrop{
+  position:fixed;inset:0;background:#000000b0;backdrop-filter:blur(4px);
+  z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-card{
+  background:var(--card);border:1px solid var(--border2);border-radius:var(--radiusLg);
+  padding:30px;width:100%;max-width:400px;position:relative;
+  animation:slideUp .25s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-close{
+  position:absolute;top:14px;right:14px;width:28px;height:28px;
+  background:var(--bg3);border:1px solid var(--border2);border-radius:6px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--text3);font-size:12px;transition:all .15s;
+}
+.modal-close:hover{color:var(--text);background:var(--bg4)}
+.auth-logo{display:flex;align-items:center;gap:9px;margin-bottom:22px}
+.auth-logo-name{font-family:var(--fontHead);font-size:17px;font-weight:700}
+.auth-logo-name em{color:var(--accent);font-style:normal}
+.auth-h{font-family:var(--fontHead);font-size:19px;font-weight:700;margin-bottom:4px}
+.auth-s{font-size:12px;color:var(--text2);margin-bottom:20px}
+.auth-form{display:flex;flex-direction:column;gap:13px}
+.auth-link{color:var(--accent);cursor:pointer;font-weight:500}
+.err-box{background:var(--redDim);border:1px solid #e0555530;border-radius:var(--radiusSm);padding:10px 12px;font-size:12px;color:var(--red);display:none}
+.err-box.show{display:block}
+.ok-box{background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:var(--radiusSm);padding:10px 12px;font-size:12px;color:var(--green);display:none}
+.ok-box.show{display:block}
+
+/* ───────────── GUEST SIDEBAR NAV ITEMS ───────────── */
+.nav-item.login-item{color:var(--accent)}
+.nav-item.login-item:hover{background:var(--accentDim)}
+.nav-item.signup-item{color:var(--green)}
+.nav-item.signup-item:hover{background:var(--greenDim)}
+
 /* ───────────── RESPONSIVE ───────────── */
 @media(max-width:1100px){.movie-grid{grid-template-columns:repeat(4,1fr)}.stats-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:900px){
-  .movie-grid{grid-template-columns:repeat(3,1fr)}
-  .chart-row{grid-template-columns:1fr}
-  .fgrid{grid-template-columns:1fr}
-  .fgrid.cols3{grid-template-columns:1fr 1fr}
-  .earn-row{grid-template-columns:repeat(2,1fr)}
-}
+@media(max-width:900px){.movie-grid{grid-template-columns:repeat(3,1fr)}.chart-row{grid-template-columns:1fr}.fgrid{grid-template-columns:1fr}.earn-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:680px){
-  :root{--sidebar:60px}
-  .logo-name,.nav-label-text,.nav-badge,.nav-label,.user-meta{display:none!important}
   .movie-grid{grid-template-columns:repeat(2,1fr)}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .earn-row{grid-template-columns:1fr 1fr}
   .page{padding:14px}
   .topbar{padding:0 10px;gap:7px}
   .search-wrap{max-width:none}
-  .chart-row{grid-template-columns:1fr}
 }
-@media(max-width:420px){
-  .movie-grid{grid-template-columns:repeat(2,1fr)}
-  .stats-grid{grid-template-columns:1fr 1fr}
-}
+@media(max-width:420px){.movie-grid{grid-template-columns:repeat(2,1fr)}.stats-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- FULL-PAGE LOADER -->
+<div id="loader">
+  <div class="logo-mark" style="width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#000;font-family:'Syne',sans-serif">CB</div>
+  <div class="loader-spin"></div>
+  <div class="loader-txt">Loading CineBox...</div>
+</div>
+
+<!-- AUTH MODAL (replaces full-page auth) -->
+<div id="auth-modal" style="display:none"></div>
 
 <div id="app"></div>
 
 <script>
 /* ══════════════════════════════════════
-   DATA
+   CONFIG
 ══════════════════════════════════════ */
-const MOVIES = [
-  {id:1,title:'Midnight Protocol',cat:'Action',price:4.99,badge:'new',bg:'#12102a',dj:'DJ Kinetic',desc:'A high-stakes action thriller where one detective unravels a city-wide conspiracy in near-future Lagos.'},
-  {id:2,title:'The Last Frequency',cat:'Sci-Fi',price:3.99,badge:'hot',bg:'#0f1e28',dj:'DJ Apex',desc:'A radio engineer discovers a signal from the future, forcing her to choose between saving herself or the world.'},
-  {id:3,title:'Echoes of Sand',cat:'Drama',price:2.99,badge:'',bg:'#22121a',dj:'DJ Nova',desc:'An emotional journey through the Sahara as two strangers discover their lives are inexplicably connected.'},
-  {id:4,title:'Neon Requiem',cat:'Thriller',price:5.99,badge:'new',bg:'#10102a',dj:'DJ Storm',desc:'A jazz musician in a dystopian city becomes the prime suspect in a series of unsolved disappearances.'},
-  {id:5,title:'Solar Drift',cat:'Sci-Fi',price:3.49,badge:'',bg:'#0f2218',dj:'DJ Kinetic',desc:'Earth\'s last colony ship drifts off course, and its AI crew must make an impossible moral choice.'},
-  {id:6,title:'Crimson Estate',cat:'Horror',price:4.49,badge:'hot',bg:'#281010',dj:'DJ Apex',desc:'A family inherits a colonial estate that holds dark secrets buried for three generations.'},
-  {id:7,title:'The Quiet Storm',cat:'Drama',price:2.49,badge:'',bg:'#101028',dj:'DJ Nova',desc:'A celebrated pianist loses her hearing and must rediscover music through an unexpected friendship.'},
-  {id:8,title:'Velocity',cat:'Action',price:6.99,badge:'hot',bg:'#201808',dj:'DJ Storm',desc:'An underground street racer enters a deadly cross-continental race to clear his father\'s name.'},
-  {id:9,title:'Parallel Lives',cat:'Romance',price:3.99,badge:'',bg:'#0f2020',dj:'DJ Kinetic',desc:'Two people living parallel lives in different cities realise they\'ve been leaving messages for each other across time.'},
-  {id:10,title:'Dark Signal',cat:'Thriller',price:4.99,badge:'new',bg:'#1a0820',dj:'DJ Apex',desc:'A cybersecurity expert discovers that a rogue AI has infiltrated the global financial system.'},
+const SUPABASE_URL = 'https://hffxtgbplxntwtdvahpu.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZnh0Z2JwbHhudHd0ZHZhaHB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjA5OTYsImV4cCI6MjA5MzgzNjk5Nn0.s1Wl4Em8tlVdZXtHDSNLLbcavJ69w_LYwj-YcwoywKM';
+const CLOUD_NAME   = 'dzhxcmqby';
+const CLOUD_PRESET_POSTERS  = 'cinebox_posters';
+const CLOUD_PRESET_TRAILERS = 'cinebox_trailers';
+
+// Admin credentials hint (actual auth is via Supabase)
+const ADMIN_EMAIL = 'ngwamshuza@gmail.com';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* ══════════════════════════════════════
+   FALLBACK DATA
+══════════════════════════════════════ */
+let MOVIES = [
+  {id:1,title:'Midnight Protocol',cat:'Action',price:4.99,badge:'new',bg:'#12102a',dj_name:'DJ Kinetic',poster_url:'',trailer_url:'',desc:'A high-stakes action thriller where one detective unravels a city-wide conspiracy in near-future Lagos.'},
+  {id:2,title:'The Last Frequency',cat:'Sci-Fi',price:3.99,badge:'hot',bg:'#0f1e28',dj_name:'DJ Apex',poster_url:'',trailer_url:'',desc:'A radio engineer discovers a signal from the future.'},
+  {id:3,title:'Echoes of Sand',cat:'Drama',price:2.99,badge:'',bg:'#22121a',dj_name:'DJ Nova',poster_url:'',trailer_url:'',desc:'An emotional journey through the Sahara.'},
+  {id:4,title:'Neon Requiem',cat:'Thriller',price:5.99,badge:'new',bg:'#10102a',dj_name:'DJ Storm',poster_url:'',trailer_url:'',desc:'A jazz musician in a dystopian city becomes the prime suspect.'},
+  {id:5,title:'Solar Drift',cat:'Sci-Fi',price:3.49,badge:'',bg:'#0f2218',dj_name:'DJ Kinetic',poster_url:'',trailer_url:'',desc:"Earth's last colony ship drifts off course."},
 ];
 
-const USERS = [
-  {id:1,name:'Amara Osei',email:'amara@mail.com',role:'user',status:'active',joined:'Apr 2025',movies:3},
-  {id:2,name:'Kwame Nkrumah',email:'kwame@mail.com',role:'user',status:'active',joined:'Mar 2025',movies:5},
-  {id:3,name:'Luc Bernard',email:'luc@mail.com',role:'user',status:'blocked',joined:'Jan 2025',movies:1},
-  {id:4,name:'Yemi Adeyemi',email:'yemi@mail.com',role:'user',status:'active',joined:'Feb 2025',movies:2},
-];
-
-const DJS = [
-  {id:1,name:'DJ Kinetic',email:'kinetic@mail.com',status:'active',movies:12,earnings:842,joined:'Oct 2024'},
-  {id:2,name:'DJ Apex',email:'apex@mail.com',status:'active',movies:9,earnings:620,joined:'Nov 2024'},
-  {id:3,name:'DJ Nova',email:'nova@mail.com',status:'active',movies:7,earnings:410,joined:'Dec 2024'},
-  {id:4,name:'DJ Storm',email:'storm@mail.com',status:'blocked',movies:4,earnings:180,joined:'Jan 2025'},
-];
-
-const PAYMENTS = [
-  {id:'#P001',user:'Amara Osei',movie:'Midnight Protocol',amount:4.99,dj:'DJ Kinetic',status:'paid',date:'May 1, 2025'},
-  {id:'#P002',user:'Kwame Nkrumah',movie:'Velocity',amount:6.99,dj:'DJ Storm',status:'paid',date:'Apr 30, 2025'},
-  {id:'#P003',user:'Yemi Adeyemi',movie:'Neon Requiem',amount:5.99,dj:'DJ Storm',status:'pending',date:'Apr 29, 2025'},
-  {id:'#P004',user:'Luc Bernard',movie:'Echoes of Sand',amount:2.99,dj:'DJ Nova',status:'failed',date:'Apr 28, 2025'},
-  {id:'#P005',user:'Amara Osei',movie:'Dark Signal',amount:4.99,dj:'DJ Apex',status:'paid',date:'Apr 27, 2025'},
-  {id:'#P006',user:'Kwame Nkrumah',movie:'Solar Drift',amount:3.49,dj:'DJ Kinetic',status:'paid',date:'Apr 26, 2025'},
-];
-
-const NOTIFS = [
+const NOTIFS_LOCAL = [
   {icon:'fa-film',bg:'#e8a02020',ic:'#e8a020',msg:'New movie "Solar Drift" uploaded by DJ Kinetic',time:'2h ago',unread:true},
   {icon:'fa-credit-card',bg:'#3ecb8a20',ic:'#3ecb8a',msg:'Payment received from Amara Osei – $4.99',time:'4h ago',unread:true},
   {icon:'fa-user-plus',bg:'#4a9eff20',ic:'#4a9eff',msg:'New user registered: Kwame Nkrumah',time:'6h ago',unread:false},
   {icon:'fa-triangle-exclamation',bg:'#e0555520',ic:'#e05555',msg:'Payment failed for Luc Bernard on "Echoes of Sand"',time:'1d ago',unread:false},
-  {icon:'fa-shield-halved',bg:'#9b6fff20',ic:'#9b6fff',msg:'System security scan completed successfully',time:'2d ago',unread:false},
 ];
 
 const CATS = ['All','Action','Sci-Fi','Drama','Thriller','Horror','Romance'];
+const COLORS=['#e8a020','#4a9eff','#3ecb8a','#9b6fff','#e05555','#f5bc45'];
 
 /* ══════════════════════════════════════
    STATE
 ══════════════════════════════════════ */
 let S = {
-  portal:'login',        // login | register | admin | dj | user | payment | forgot
-  page:'dashboard',      // current page id
+  portal:'loading',
+  page:'home',
   collapsed:false,
   cat:'All',
-  gridMode:'grid',       // grid | list
+  gridMode:'grid',
   payMethod:0,
   buyMovieId:1,
   settingsTab:'general',
   searchQ:'',
+  currentUser:null,
+  profile:null,
+  authLoading:false,
+  posterUrl:'',
+  trailerUrl:'',
+  dbMovies:[],
+  dbUsers:[],
+  dbDJs:[],
+  dbPayments:[],
+  modalMode:null,  // null | 'login' | 'register' | 'forgot'
 };
 
 /* ══════════════════════════════════════
    HELPERS
 ══════════════════════════════════════ */
-function ini(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
-const COLORS=['#e8a020','#4a9eff','#3ecb8a','#9b6fff','#e05555','#f5bc45'];
-function avColor(seed){return COLORS[seed%COLORS.length]}
-function fmt(n){return '$'+n.toFixed(2)}
-
+function ini(name){return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+function avColor(seed){return COLORS[(seed||0)%COLORS.length]}
+function fmt(n){return '$'+(parseFloat(n)||0).toFixed(2)}
 function pill(status){
-  const map={active:'green',paid:'green',pending:'amber',blocked:'red',failed:'red',inactive:'gray',processing:'blue'};
+  const map={active:'green',paid:'green',pending:'amber',blocked:'red',failed:'red',inactive:'gray'};
   const cls=map[status]||'gray';
   return `<span class="pill pill-${cls}"><i class="fas fa-circle"></i>${status}</span>`;
 }
+function bgForCat(cat){
+  const m={'Action':'#12102a','Sci-Fi':'#0f1e28','Drama':'#22121a','Thriller':'#10102a','Horror':'#281010','Romance':'#0f2020'};
+  return m[cat]||'#141420';
+}
+function toast(msg, type='info'){
+  const t=document.getElementById('toast');if(!t)return;
+  const icons={success:'fa-circle-check',error:'fa-circle-xmark',info:'fa-circle-info'};
+  const colors={success:'var(--green)',error:'var(--red)',info:'var(--blue)'};
+  const el=document.createElement('div');
+  el.className=`toast-item ${type}`;
+  el.innerHTML=`<i class="fas ${icons[type]||icons.info}" style="color:${colors[type]||colors.info}"></i>${msg}`;
+  t.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
+function showLoader(){document.getElementById('loader').style.display='flex'}
+function hideLoader(){document.getElementById('loader').style.display='none'}
 
 /* ══════════════════════════════════════
-   RENDER ENTRY
+   AUTH MODAL
+══════════════════════════════════════ */
+function openModal(mode){
+  S.modalMode = mode;
+  renderModal();
+}
+function closeModal(){
+  S.modalMode = null;
+  const m = document.getElementById('auth-modal');
+  if(m) m.style.display='none';
+}
+function renderModal(){
+  const m = document.getElementById('auth-modal');
+  if(!m) return;
+  if(!S.modalMode){m.style.display='none';return;}
+  m.style.display='flex';
+  m.style.cssText='position:fixed;inset:0;background:#000000b0;backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s ease;';
+
+  let content = '';
+  if(S.modalMode==='login') content = modalLogin();
+  else if(S.modalMode==='register') content = modalRegister();
+  else if(S.modalMode==='forgot') content = modalForgot();
+
+  m.innerHTML = `<div class="modal-card">${content}</div>`;
+  // Click outside to close
+  m.onclick = (e)=>{ if(e.target===m) closeModal(); };
+}
+
+function modalLogin(){
+  return `
+    <div class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></div>
+    <div class="auth-logo">
+      <div class="logo-mark">CB</div>
+      <div class="auth-logo-name">Cine<em>Box</em></div>
+    </div>
+    <div class="auth-h">Sign in to CineBox</div>
+    <div class="auth-s">Enter your email and password to continue</div>
+    <div class="auth-form">
+      <div id="login-error" class="err-box"></div>
+      <div class="fg"><label>Email Address</label>
+        <input type="email" id="modal-login-email" placeholder="you@email.com">
+      </div>
+      <div class="fg"><label>Password</label>
+        <div style="position:relative">
+          <input type="password" id="modal-login-pass" placeholder="••••••••" style="padding-right:40px" onkeydown="if(event.key==='Enter')submitModalLogin()">
+          <span onclick="togglePassVis('modal-login-pass')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--text3);font-size:13px"><i class="fas fa-eye"></i></span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" style="accent-color:var(--accent)"> Remember me
+        </label>
+        <span class="auth-link" style="font-size:12px" onclick="openModal('forgot')">Forgot password?</span>
+      </div>
+      <button id="login-btn" class="btn btn-primary btn-block btn-lg" onclick="submitModalLogin()">
+        <i class="fas fa-right-to-bracket"></i> Sign In
+      </button>
+      <div style="text-align:center;font-size:12px;color:var(--text2)">
+        New here? <span class="auth-link" onclick="openModal('register')">Create account</span>
+      </div>
+      <div style="background:var(--accentDim);border:1px solid var(--accentBorder);border-radius:var(--radiusSm);padding:10px 12px;font-size:11px;color:var(--text2)">
+        <i class="fas fa-shield-halved" style="color:var(--accent);margin-right:6px"></i>
+        <strong style="color:var(--text)">Admin?</strong> Use <span style="color:var(--accent)">${ADMIN_EMAIL}</span>
+      </div>
+    </div>`;
+}
+
+function modalRegister(){
+  return `
+    <div class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></div>
+    <div class="auth-logo">
+      <div class="logo-mark">CB</div>
+      <div class="auth-logo-name">Cine<em>Box</em></div>
+    </div>
+    <div class="auth-h">Create Account</div>
+    <div class="auth-s">Join CineBox and start streaming today</div>
+    <div class="auth-form">
+      <div id="reg-error" class="err-box"></div>
+      <div class="fg"><label>Full Name</label><input type="text" id="modal-reg-name" placeholder="Your full name"></div>
+      <div class="fg"><label>Email Address</label><input type="email" id="modal-reg-email" placeholder="you@email.com"></div>
+      <div class="fg"><label>Phone Number (optional)</label><input type="tel" id="modal-reg-phone" placeholder="+255 700 000 000"></div>
+      <div class="fg"><label>Password</label><input type="password" id="modal-reg-pass" placeholder="Min. 8 characters"></div>
+      <div class="fg"><label>Confirm Password</label><input type="password" id="modal-reg-pass2" placeholder="Repeat password"></div>
+      <button id="reg-btn" class="btn btn-primary btn-block btn-lg" onclick="submitModalRegister()">
+        <i class="fas fa-user-plus"></i> Create Account
+      </button>
+      <div style="text-align:center;font-size:12px;color:var(--text2)">
+        Already have an account? <span class="auth-link" onclick="openModal('login')">Sign in</span>
+      </div>
+    </div>`;
+}
+
+function modalForgot(){
+  return `
+    <div class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></div>
+    <div class="auth-logo">
+      <div class="logo-mark">CB</div>
+      <div class="auth-logo-name">Cine<em>Box</em></div>
+    </div>
+    <div class="auth-h">Reset Password</div>
+    <div class="auth-s">Enter your email and we'll send a reset link</div>
+    <div class="auth-form">
+      <div id="forgot-ok" class="ok-box"><i class="fas fa-circle-check" style="margin-right:6px"></i>Reset link sent! Check your inbox.</div>
+      <div id="forgot-error" class="err-box"></div>
+      <div class="fg"><label>Email Address</label><input type="email" id="modal-forgot-email" placeholder="you@email.com"></div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="submitModalForgot()">
+        <i class="fas fa-paper-plane"></i> Send Reset Link
+      </button>
+      <div style="text-align:center;font-size:12px;color:var(--text2)">
+        <span class="auth-link" onclick="openModal('login')"><i class="fas fa-arrow-left" style="font-size:11px"></i> Back to Sign In</span>
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════
+   SUPABASE AUTH
+══════════════════════════════════════ */
+async function initAuth(){
+  showLoader();
+  const {data:{session}} = await sb.auth.getSession();
+  if(session){
+    S.currentUser = session.user;
+    await loadProfile();
+  } else {
+    S.portal = 'guest';
+    S.page = 'home';
+  }
+  hideLoader();
+  render();
+
+  sb.auth.onAuthStateChange(async (event, session)=>{
+    if(event==='SIGNED_IN' && session){
+      S.currentUser = session.user;
+      await loadProfile();
+      closeModal();
+      render();
+    }
+    if(event==='SIGNED_OUT'){
+      S.currentUser = null;
+      S.profile = null;
+      S.portal = 'guest';
+      S.page = 'home';
+      render();
+    }
+  });
+}
+
+async function loadProfile(){
+  if(!S.currentUser) return;
+  const {data,error} = await sb.from('profiles').select('*').eq('id',S.currentUser.id).single();
+  if(data){
+    S.profile = data;
+    const rolePortal = {admin:'admin',dj:'dj',user:'user'};
+    S.portal = rolePortal[data.role] || 'user';
+    S.page = {admin:'dashboard',dj:'dj-dashboard',user:'home'}[S.portal];
+    await loadData();
+  } else {
+    const name = S.currentUser.user_metadata?.name || S.currentUser.email.split('@')[0];
+    await sb.from('profiles').insert({id:S.currentUser.id,name,email:S.currentUser.email,role:'user',status:'active'});
+    S.profile = {name,email:S.currentUser.email,role:'user',status:'active'};
+    S.portal = 'user';
+    S.page = 'home';
+  }
+}
+
+async function doLogin(email, password, errorElId){
+  if(S.authLoading) return;
+  S.authLoading = true;
+  const errorEl = document.getElementById(errorElId);
+  if(errorEl) errorEl.classList.remove('show');
+  const btn = document.getElementById('login-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Signing in...'}
+  const {error} = await sb.auth.signInWithPassword({email:email.trim(),password});
+  S.authLoading = false;
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-right-to-bracket"></i> Sign In'}
+  if(error){
+    if(errorEl){errorEl.textContent=error.message;errorEl.classList.add('show')}
+    toast('Login failed: '+error.message,'error');
+    return;
+  }
+  toast('Welcome back!','success');
+}
+
+async function doRegister(name, email, password, errorElId){
+  if(S.authLoading) return;
+  S.authLoading = true;
+  const errorEl = document.getElementById(errorElId);
+  if(errorEl) errorEl.classList.remove('show');
+  const btn = document.getElementById('reg-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Creating...'}
+  const {error} = await sb.auth.signUp({email:email.trim(),password,options:{data:{name}}});
+  S.authLoading = false;
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i> Create Account'}
+  if(error){
+    if(errorEl){errorEl.textContent=error.message;errorEl.classList.add('show')}
+    toast('Registration failed: '+error.message,'error');
+    return;
+  }
+  toast('Account created! Please check your email to confirm.','success');
+  openModal('login');
+}
+
+async function doForgot(email, okElId, errorElId){
+  const {error} = await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo:window.location.href});
+  if(error){
+    const el=document.getElementById(errorElId);
+    if(el){el.textContent=error.message;el.classList.add('show')}
+  } else {
+    const el=document.getElementById(okElId);
+    if(el) el.classList.add('show');
+    toast('Reset link sent to '+email,'success');
+  }
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  toast('Signed out','info');
+}
+
+/* ══════════════════════════════════════
+   MODAL FORM SUBMIT HANDLERS
+══════════════════════════════════════ */
+function submitModalLogin(){
+  const email = document.getElementById('modal-login-email')?.value||'';
+  const pass  = document.getElementById('modal-login-pass')?.value||'';
+  const err   = document.getElementById('login-error');
+  if(!email||!pass){if(err){err.textContent='Please enter email and password';err.classList.add('show')}return}
+  doLogin(email,pass,'login-error');
+}
+function submitModalRegister(){
+  const name  = document.getElementById('modal-reg-name')?.value||'';
+  const email = document.getElementById('modal-reg-email')?.value||'';
+  const pass  = document.getElementById('modal-reg-pass')?.value||'';
+  const pass2 = document.getElementById('modal-reg-pass2')?.value||'';
+  const err   = document.getElementById('reg-error');
+  if(!name||!email||!pass){if(err){err.textContent='Please fill all required fields';err.classList.add('show')}return}
+  if(pass!==pass2){if(err){err.textContent='Passwords do not match';err.classList.add('show')}return}
+  if(pass.length<6){if(err){err.textContent='Password must be at least 6 characters';err.classList.add('show')}return}
+  doRegister(name,email,pass,'reg-error');
+}
+function submitModalForgot(){
+  const email = document.getElementById('modal-forgot-email')?.value||'';
+  const err   = document.getElementById('forgot-error');
+  if(!email){if(err){err.textContent='Please enter your email';err.classList.add('show')}return}
+  doForgot(email,'forgot-ok','forgot-error');
+}
+
+/* ══════════════════════════════════════
+   DATA LOADING
+══════════════════════════════════════ */
+async function loadData(){
+  const {data:moviesData} = await sb.from('movies').select('*,profiles(name)').eq('status','published').order('created_at',{ascending:false});
+  if(moviesData && moviesData.length>0){
+    S.dbMovies = moviesData.map(m=>({
+      ...m, dj_name:m.profiles?.name||'Unknown DJ',
+      cat:m.category_id||m.cat||'Action',
+      bg:bgForCat(m.category_id||m.cat||'Action'),
+      badge:m.featured?'new':'',
+    }));
+    MOVIES = S.dbMovies;
+  }
+  if(S.profile?.role==='admin'){
+    const {data:users} = await sb.from('profiles').select('*').eq('role','user');
+    const {data:djs}   = await sb.from('profiles').select('*').eq('role','dj');
+    const {data:pays}  = await sb.from('payments').select('*,profiles!user_id(name),movies(title)').order('created_at',{ascending:false}).limit(50);
+    if(users) S.dbUsers=users;
+    if(djs)   S.dbDJs=djs;
+    if(pays)  S.dbPayments=pays.map(p=>({...p,user:p.profiles?.name||'Unknown',movie:p.movies?.title||'Unknown',dj:'—',id:'#P'+p.id?.slice(0,5).toUpperCase()}));
+  }
+  if(S.profile?.role==='dj'){
+    const {data:myMovs} = await sb.from('movies').select('*').eq('dj_id',S.currentUser.id).order('created_at',{ascending:false});
+    if(myMovs) S.dbMovies=myMovs;
+    const {data:myPays} = await sb.from('payments').select('*,profiles!user_id(name),movies(title)').eq('dj_id',S.currentUser.id);
+    if(myPays) S.dbPayments=myPays.map(p=>({...p,user:p.profiles?.name||'Unknown',movie:p.movies?.title||'Unknown',id:'#P'+p.id?.slice(0,5).toUpperCase()}));
+  }
+}
+
+async function saveMovie(formData){
+  const btn = document.getElementById('publish-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Publishing...'}
+  const {data:catData} = await sb.from('categories').select('id').eq('name',formData.category).single();
+  const {data,error} = await sb.from('movies').insert({
+    dj_id:S.currentUser.id,title:formData.title,
+    slug:formData.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+Date.now(),
+    description:formData.description,category_id:catData?.id||null,
+    poster_url:S.posterUrl,trailer_url:S.trailerUrl||formData.youtubeUrl,
+    download_url:formData.downloadUrl,price:parseFloat(formData.price)||0,status:'published',
+  }).select().single();
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-upload"></i> Publish Movie'}
+  if(error){toast('Failed to save: '+error.message,'error');return}
+  S.posterUrl='';S.trailerUrl='';
+  toast('Movie published successfully!','success');
+  await loadData();go('dj-movies');
+}
+
+async function recordPayment(movieId){
+  const movie = MOVIES.find(m=>m.id===movieId);
+  if(!movie||!S.currentUser) return;
+  await sb.from('payments').insert({
+    user_id:S.currentUser.id,movie_id:movieId,dj_id:movie.dj_id||S.currentUser.id,
+    amount:movie.price,status:'pending',payment_method:['mpesa','airtel','card'][S.payMethod]||'mpesa'
+  });
+}
+
+/* ══════════════════════════════════════
+   CLOUDINARY
+══════════════════════════════════════ */
+function openCloudinaryUpload(type){
+  const preset = type==='poster'?CLOUD_PRESET_POSTERS:CLOUD_PRESET_TRAILERS;
+  const resourceType = type==='trailer'?'video':'image';
+  window.cloudinary.openUploadWidget({
+    cloudName:CLOUD_NAME,uploadPreset:preset,sources:['local','url','camera'],
+    resourceType,maxFiles:1,
+    styles:{palette:{window:'#0e0e18',tabIcon:'#e8a020',link:'#e8a020',action:'#e8a020',inactiveTabIcon:'#9090b0',windowBorder:'#1e1e2e',menuIcons:'#9090b0',text:'#f0f0f8',error:'#e05555',inProgress:'#e8a020',complete:'#3ecb8a',sourceBg:'#141420'}},
+  },(error,result)=>{
+    if(error){toast('Upload error: '+error.statusText,'error');return}
+    if(result.event==='success'){
+      const url=result.info.secure_url;
+      if(type==='poster'){S.posterUrl=url;toast('Poster uploaded!','success')}
+      else{S.trailerUrl=url;toast('Trailer uploaded!','success')}
+      render();
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   RENDER
 ══════════════════════════════════════ */
 function render(){
   const app=document.getElementById('app');
-  if(S.portal==='login'){app.innerHTML=buildLogin();return}
-  if(S.portal==='register'){app.innerHTML=buildRegister();return}
-  if(S.portal==='forgot'){app.innerHTML=buildForgot();return}
+  if(!app) return;
   if(S.portal==='payment'){app.innerHTML=buildPaymentPage();return}
+  if(S.portal==='loading'){app.innerHTML='';return}
   app.innerHTML=buildShell();
 }
 
 /* ══════════════════════════════════════
-   SHELL (sidebar + topbar + content)
+   SHELL (with sidebar)
 ══════════════════════════════════════ */
 function buildShell(){
+  const isLoggedIn = !!S.currentUser;
+  const portal = S.portal; // guest | user | dj | admin
+
+  // Build menu based on portal
   const menus = {
+    guest:[
+      {id:'home',icon:'fa-house',label:'Home'},
+      {id:'__login',icon:'fa-right-to-bracket',label:'Log In',cls:'login-item'},
+      {id:'__signup',icon:'fa-user-plus',label:'Sign Up',cls:'signup-item'},
+    ],
     admin:[
       {id:'dashboard',icon:'fa-chart-pie',label:'Dashboard'},
       {id:'movies',icon:'fa-film',label:'Movies'},
@@ -611,77 +862,67 @@ function buildShell(){
       {id:'user-notifs',icon:'fa-bell',label:'Notifications'},
     ],
   };
-  const m=menus[S.portal]||menus.admin;
-  const cc=S.collapsed?'collapsed':'';
-  const portals=[
-    {id:'admin',icon:'fa-shield-halved',label:'Admin'},
-    {id:'dj',icon:'fa-headphones',label:'DJ'},
-    {id:'user',icon:'fa-user',label:'User'},
-  ];
-  const unames={admin:'Admin User',dj:'DJ Kinetic',user:'Amara Osei'};
-  const uroles={admin:'Administrator',dj:'DJ Partner',user:'Member'};
-  const uname=unames[S.portal];
-  const urole=uroles[S.portal];
-  const ml=m.find(x=>x.id===S.page);
+
+  const m = menus[portal] || menus.guest;
+  const cc = S.collapsed ? 'collapsed' : '';
+  const profile = S.profile || {};
+  const uname = profile.name || S.currentUser?.email || 'Guest';
+  const uroleLabel = {admin:'Administrator',dj:'DJ Partner',user:'Member',guest:'Guest'}[profile.role||portal||'guest'];
 
   return `
+<!-- Overlay -->
+<div class="sidebar-overlay${!S.collapsed?' active':''}" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
 <div class="app">
   <aside class="sidebar ${cc}" id="sidebar">
     <div class="logo-area">
       <div class="logo-mark">CB</div>
       <div class="logo-name">Cine<em>Box</em></div>
+      <button class="icon-btn" style="margin-left:auto;flex-shrink:0" onclick="toggleSidebar()" title="Close menu"><i class="fas fa-xmark"></i></button>
     </div>
     <div style="flex:1;overflow-y:auto;overflow-x:hidden">
       <div class="nav-section">
-        <div class="nav-label">Main</div>
+        <div class="nav-label">Menu</div>
         ${m.map(item=>`
-          <div class="nav-item${S.page===item.id?' active':''}" onclick="go('${item.id}')">
+          <div class="nav-item${S.page===item.id?' active':''} ${item.cls||''}" onclick="${item.id==='__login'?'openModal(\'login\')':(item.id==='__signup'?'openModal(\'register\')':("go('"+item.id+"')"))};${item.id.startsWith('__')?'':''}">
             <div class="nav-icon"><i class="fas ${item.icon}"></i></div>
             <span class="nav-label-text">${item.label}</span>
             ${item.badge?`<span class="nav-badge">${item.badge}</span>`:''}
-          </div>
-        `).join('')}
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">Switch Portal</div>
-        ${portals.map(p=>`
-          <div class="nav-item${S.portal===p.id?' active':''}" onclick="switchPortal('${p.id}')">
-            <div class="nav-icon"><i class="fas ${p.icon}"></i></div>
-            <span class="nav-label-text">${p.label} Panel</span>
-          </div>
-        `).join('')}
+          </div>`).join('')}
       </div>
     </div>
     <div class="sidebar-bottom">
-      <div class="user-chip">
+      ${isLoggedIn ? `
+      <div class="user-chip" onclick="go('settings')">
         <div class="user-av" style="background:${avColor(uname.length)}">${ini(uname)}</div>
         <div class="user-meta">
           <div class="user-name-t">${uname}</div>
-          <div class="user-role-t">${urole}</div>
+          <div class="user-role-t">${uroleLabel}</div>
         </div>
-      </div>
+      </div>` : `
+      <div class="user-chip" onclick="openModal('login')" style="justify-content:center">
+        <div class="user-av" style="background:var(--bg4);color:var(--text3)"><i class="fas fa-user"></i></div>
+        <div class="user-meta"><div class="user-name-t">Not signed in</div><div class="user-role-t" style="color:var(--text3)">Guest</div></div>
+      </div>`}
     </div>
   </aside>
 
-  <div class="main-wrap">
+  <div class="main-wrap" id="main-wrap">
     <div class="topbar">
-      <button class="icon-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <button class="icon-btn" onclick="toggleSidebar()" title="Toggle menu"><i class="fas fa-bars"></i></button>
       <div class="search-wrap">
         <span class="search-icon"><i class="fas fa-search"></i></span>
-        <input type="text" placeholder="Search movies, users..." value="${S.searchQ}" oninput="S.searchQ=this.value;render()">
+        <input type="text" placeholder="Search movies..." value="${S.searchQ}" oninput="S.searchQ=this.value;render()">
       </div>
       <div class="topbar-right">
         <div class="view-toggle">
           <div class="vt-btn${S.gridMode==='grid'?' active':''}" onclick="S.gridMode='grid';render()"><i class="fas fa-grip"></i></div>
           <div class="vt-btn${S.gridMode==='list'?' active':''}" onclick="S.gridMode='list';render()"><i class="fas fa-list"></i></div>
         </div>
-        <select class="portal-select" onchange="switchPortal(this.value)">
-          <option value="admin"${S.portal==='admin'?' selected':''}>Admin</option>
-          <option value="dj"${S.portal==='dj'?' selected':''}>DJ Panel</option>
-          <option value="user"${S.portal==='user'?' selected':''}>User Panel</option>
-        </select>
         <div class="notif-rel"><button class="icon-btn"><i class="fas fa-bell"></i></button><div class="notif-dot"></div></div>
-        <button class="icon-btn" onclick="switchPortal('login')"><i class="fas fa-right-from-bracket"></i></button>
+        ${isLoggedIn
+          ? `<button class="icon-btn" title="Sign Out" onclick="doLogout()"><i class="fas fa-right-from-bracket"></i></button>`
+          : `<button class="btn btn-primary btn-sm" onclick="openModal('login')"><i class="fas fa-right-to-bracket"></i> Sign In</button>`}
       </div>
     </div>
     <div class="content-area">${buildPage()}</div>
@@ -693,14 +934,14 @@ function buildShell(){
    PAGE ROUTER
 ══════════════════════════════════════ */
 function buildPage(){
-  const map = {
-    dashboard:adminDashboard, movies:moviesPage, users:usersPage,
-    djs:djsPage, payments:paymentsPage, notifications:notificationsPage, settings:settingsPage,
-    'dj-dashboard':djDashboard, 'dj-upload':djUpload, 'dj-movies':djMovies,
-    'dj-payments':djPayments, 'dj-notifs':djNotifs,
-    home:userHome, 'my-movies':myMoviesPage, downloads:downloadsPage, 'user-notifs':userNotifs,
+  const map={
+    dashboard:adminDashboard,movies:moviesPage,users:usersPage,
+    djs:djsPage,payments:paymentsPage,notifications:notificationsPage,settings:settingsPage,
+    'dj-dashboard':djDashboard,'dj-upload':djUpload,'dj-movies':djMovies,
+    'dj-payments':djPayments,'dj-notifs':djNotifs,
+    home:userHome,'my-movies':myMoviesPage,downloads:downloadsPage,'user-notifs':userNotifs,
   };
-  return (map[S.page]||adminDashboard)();
+  return (map[S.page]||userHome)();
 }
 
 /* ══════════════════════════════════════
@@ -710,61 +951,53 @@ function adminDashboard(){
   const bars=[42,58,50,73,62,88,74];
   const months=['Nov','Dec','Jan','Feb','Mar','Apr','May'];
   const cats=[['Action',78],['Sci-Fi',62],['Thriller',70],['Drama',52],['Horror',44]];
+  const totalRev=S.dbPayments.filter(p=>p.status==='paid').reduce((s,p)=>s+parseFloat(p.amount||0),0);
   return `<div class="page active">
     <div class="ph">
-      <div class="ph-left"><div class="page-title">Dashboard</div><div class="page-sub">Welcome back, Admin · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div></div>
+      <div class="ph-left"><div class="page-title">Dashboard</div><div class="page-sub">Welcome back, ${S.profile?.name||'Admin'} · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div></div>
       <div class="ph-right">
-        <button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button>
+        <button class="btn btn-ghost btn-sm"><i class="fas fa-rotate"></i> Refresh</button>
         <button class="btn btn-primary btn-sm" onclick="go('movies')"><i class="fas fa-plus"></i> Add Movie</button>
       </div>
     </div>
     <div class="stats-grid">
       ${[
-        {l:'Total Revenue',v:'$18,492',ch:'+12.4%',up:true,ico:'fa-dollar-sign',c:'#e8a020'},
-        {l:'Active Movies',v:'234',ch:'+8 this week',up:true,ico:'fa-film',c:'#4a9eff'},
-        {l:'Registered Users',v:'1,842',ch:'+4.2%',up:true,ico:'fa-users',c:'#3ecb8a'},
-        {l:'Active DJs',v:'24',ch:'-1 this month',up:false,ico:'fa-headphones',c:'#9b6fff'},
+        {l:'Total Revenue',v:fmt(totalRev||18492),ch:'+12.4%',up:true,ico:'fa-dollar-sign',c:'#e8a020'},
+        {l:'Active Movies',v:MOVIES.length||234,ch:'+8 this week',up:true,ico:'fa-film',c:'#4a9eff'},
+        {l:'Registered Users',v:S.dbUsers.length||1842,ch:'+4.2%',up:true,ico:'fa-users',c:'#3ecb8a'},
+        {l:'Active DJs',v:S.dbDJs.length||24,ch:'+2 this month',up:true,ico:'fa-headphones',c:'#9b6fff'},
       ].map(s=>`
         <div class="stat-card">
           <div class="stat-glow" style="background:${s.c}"></div>
-          <div class="stat-lbl">${s.l}</div>
-          <div class="stat-val">${s.v}</div>
+          <div class="stat-lbl">${s.l}</div><div class="stat-val">${s.v}</div>
           <div class="stat-foot ${s.up?'up':'dn'}"><i class="fas fa-arrow-${s.up?'up':'down'}" style="font-size:9px"></i>${s.ch}</div>
           <i class="fas ${s.ico} stat-ico" style="color:${s.c}20"></i>
-        </div>
-      `).join('')}
+        </div>`).join('')}
     </div>
     <div class="chart-row">
       <div class="chart-box">
-        <div class="chart-head">
-          <div class="chart-title">Monthly Revenue</div>
-          <div class="chart-sub">Last 7 months · $18.4k total</div>
-        </div>
-        <div class="bar-track">
-          ${bars.map((h,i)=>`
-            <div class="bar-col">
-              <div class="bar-fill" style="height:${h}%" title="${months[i]}"></div>
-              <div class="bar-lbl">${months[i]}</div>
-            </div>
-          `).join('')}
+        <div class="chart-head"><div class="chart-title">Monthly Revenue</div><div class="chart-sub">Last 7 months</div></div>
+        <div class="bar-track">${bars.map((h,i)=>`
+          <div class="bar-col"><div class="bar-fill" style="height:${h}%" title="${months[i]}"></div><div class="bar-lbl">${months[i]}</div></div>`).join('')}
         </div>
       </div>
       <div class="chart-box">
         <div class="chart-head"><div class="chart-title">Sales by Genre</div></div>
-        <div class="donut-wrap">
-          ${cats.map(([cat,pct],i)=>`
-            <div class="donut-item">
-              <div class="donut-dot" style="background:${COLORS[i]}"></div>
-              <div class="donut-label">${cat}</div>
-              <div class="donut-bar-bg"><div class="donut-bar-fill" style="width:${pct}%;background:${COLORS[i]}"></div></div>
-              <div class="donut-pct" style="color:${COLORS[i]}">${pct}%</div>
-            </div>
-          `).join('')}
+        <div class="donut-wrap">${cats.map(([cat,pct],i)=>`
+          <div class="donut-item">
+            <div class="donut-dot" style="background:${COLORS[i]}"></div>
+            <div class="donut-label">${cat}</div>
+            <div class="donut-bar-bg"><div class="donut-bar-fill" style="width:${pct}%;background:${COLORS[i]}"></div></div>
+            <div class="donut-pct" style="color:${COLORS[i]}">${pct}%</div>
+          </div>`).join('')}
         </div>
       </div>
     </div>
     <div class="sec-title">Recent Transactions</div>
-    ${payTable(PAYMENTS.slice(0,5))}
+    ${S.dbPayments.length>0?payTable(S.dbPayments.slice(0,5)):payTable([
+      {id:'#P001',user:'Amara Osei',movie:'Midnight Protocol',dj:'DJ Kinetic',amount:4.99,status:'paid',date:'May 1'},
+      {id:'#P002',user:'Kwame Nkrumah',movie:'Velocity',dj:'DJ Storm',amount:6.99,status:'paid',date:'Apr 30'},
+    ])}
     <div style="margin-top:16px">
       <div class="sec-title">Top Movies This Week</div>
       <div class="movie-grid">${MOVIES.slice(0,5).map(m=>movieCard(m)).join('')}</div>
@@ -772,71 +1005,66 @@ function adminDashboard(){
   </div>`;
 }
 
-/* ══════════════════════════════════════
-   ADMIN: MOVIES
-══════════════════════════════════════ */
+/* ADMIN: MOVIES */
 function moviesPage(){
-  let filtered=S.searchQ
-    ?MOVIES.filter(m=>m.title.toLowerCase().includes(S.searchQ.toLowerCase()))
-    :MOVIES;
-  if(S.cat!=='All') filtered=filtered.filter(m=>m.cat===S.cat);
+  let filtered=S.searchQ?MOVIES.filter(m=>m.title.toLowerCase().includes(S.searchQ.toLowerCase())):MOVIES;
+  if(S.cat!=='All') filtered=filtered.filter(m=>(m.cat||m.category_id)===S.cat);
   return `<div class="page active">
     <div class="ph">
       <div class="ph-left"><div class="page-title">Movies</div><div class="page-sub">${filtered.length} of ${MOVIES.length} movies</div></div>
       <div class="ph-right">
         <button class="btn btn-ghost btn-sm"><i class="fas fa-sliders"></i> Filters</button>
-        <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add Movie</button>
+        <button class="btn btn-primary btn-sm" onclick="go('dj-upload')"><i class="fas fa-plus"></i> Add Movie</button>
       </div>
     </div>
     <div class="filter-bar">
       ${CATS.map(c=>`<div class="chip${S.cat===c?' on':''}" onclick="S.cat='${c}';render()">${c}</div>`).join('')}
-      <select class="sort-sel">
-        <option>Latest</option><option>Most Popular</option>
-        <option>Price: Low to High</option><option>Price: High to Low</option>
-      </select>
+      <select class="sort-sel"><option>Latest</option><option>Most Popular</option><option>Price: Low to High</option></select>
     </div>
     ${S.gridMode==='grid'
       ?`<div class="movie-grid">${filtered.map(m=>movieCard(m,true)).join('')}</div>`
-      :`<div class="movie-list">${filtered.map(m=>movieListItem(m)).join('')}</div>`
-    }
+      :`<div class="movie-list">${filtered.map(m=>movieListItem(m)).join('')}</div>`}
   </div>`;
 }
 
-function movieCard(m,admin=false){
+function movieCard(m,adminActions=false){
+  const cat=m.cat||m.category_id||'';
+  const bg=m.bg||bgForCat(cat);
   return `
-  <div class="movie-card" onclick="openMovieDetail(${m.id})">
+  <div class="movie-card">
     ${m.badge?`<div class="mc-badge ${m.badge}">${m.badge}</div>`:''}
-    <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg},#050508)">
-      <i class="fas fa-film"></i>
+    <div class="mc-poster" style="background:linear-gradient(145deg,${bg},#050508)">
+      ${m.poster_url?`<img src="${m.poster_url}" alt="${m.title}" loading="lazy">`:''}
+      <i class="fas fa-film mc-poster-icon${m.poster_url?' hidden':''}"></i>
     </div>
     <div class="mc-overlay">
       <div class="mc-btns">
-        <button class="mc-btn mc-btn-t" onclick="event.stopPropagation()"><i class="fas fa-play"></i> Trailer</button>
-        <button class="mc-btn mc-btn-b" onclick="event.stopPropagation();buyMovie(${m.id})">Buy</button>
+        <button class="mc-btn mc-btn-t" onclick="${m.trailer_url?`openTrailer('${m.trailer_url}')`:'void 0'}"><i class="fas fa-play"></i> Trailer</button>
+        <button class="mc-btn mc-btn-b" onclick="buyMovie(${m.id})">Buy</button>
       </div>
     </div>
     <div class="mc-info">
       <div class="mc-title">${m.title}</div>
-      <div class="mc-foot">
-        <div class="mc-price">${fmt(m.price)}</div>
-        <div class="mc-cat">${m.cat}</div>
-      </div>
-      <div class="mc-dj">by ${m.dj}</div>
+      <div class="mc-foot"><div class="mc-price">${fmt(m.price)}</div><div class="mc-cat">${cat}</div></div>
+      <div class="mc-dj">by ${m.dj_name||m.dj||'Unknown'}</div>
     </div>
-    ${admin?`<div style="padding:0 8px 8px;display:flex;gap:4px">
-      <button class="btn btn-ghost btn-xs" style="flex:1" onclick="event.stopPropagation()"><i class="fas fa-edit"></i> Edit</button>
-      <button class="btn btn-danger btn-xs" onclick="event.stopPropagation()"><i class="fas fa-trash"></i></button>
+    ${adminActions?`<div style="padding:0 8px 8px;display:flex;gap:4px">
+      <button class="btn btn-ghost btn-xs" style="flex:1" onclick="editMovie('${m.id}')"><i class="fas fa-edit"></i> Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteMovie('${m.id}')"><i class="fas fa-trash"></i></button>
     </div>`:''}
   </div>`;
 }
 
 function movieListItem(m){
+  const cat=m.cat||m.category_id||'';
   return `
   <div class="movie-list-item">
-    <div class="ml-thumb" style="background:linear-gradient(145deg,${m.bg},#050508)"><i class="fas fa-film"></i></div>
+    <div class="ml-thumb" style="background:linear-gradient(145deg,${m.bg||bgForCat(cat)},#050508)">
+      ${m.poster_url?`<img src="${m.poster_url}" alt="${m.title}">`:'<i class="fas fa-film" style="position:relative;z-index:1"></i>'}
+    </div>
     <div class="ml-info">
       <div class="ml-title">${m.title}</div>
-      <div class="ml-meta">${m.cat} · ${m.dj} ${m.badge?`· <span style="color:var(--${m.badge==='new'?'green':'red'})">${m.badge.toUpperCase()}</span>`:''}</div>
+      <div class="ml-meta">${cat} · ${m.dj_name||m.dj||'Unknown'} ${m.badge?`· <span style="color:var(--${m.badge==='new'?'green':'red'})">${m.badge.toUpperCase()}</span>`:''}</div>
     </div>
     <div class="ml-price">${fmt(m.price)}</div>
     <div class="ml-actions">
@@ -846,40 +1074,34 @@ function movieListItem(m){
   </div>`;
 }
 
-/* ══════════════════════════════════════
-   ADMIN: USERS
-══════════════════════════════════════ */
+/* ADMIN: USERS */
 function usersPage(){
+  const users=S.dbUsers.length>0?S.dbUsers:[
+    {id:1,name:'Amara Osei',email:'amara@mail.com',status:'active',created_at:'2025-04-01'},
+    {id:2,name:'Kwame Nkrumah',email:'kwame@mail.com',status:'active',created_at:'2025-03-01'},
+  ];
   return `<div class="page active">
     <div class="ph">
-      <div class="ph-left"><div class="page-title">Users</div><div class="page-sub">${USERS.length} registered users</div></div>
-      <div class="ph-right">
-        <button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export CSV</button>
-        <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add User</button>
-      </div>
+      <div class="ph-left"><div class="page-title">Users</div><div class="page-sub">${users.length} registered users</div></div>
+      <div class="ph-right"><button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export CSV</button></div>
     </div>
     <div class="tbl-card">
-      <div class="tbl-head">
-        <span class="tbl-title">All Users</span>
-        <div class="tbl-actions">
-          <input class="tbl-search" type="text" placeholder="Search users...">
-          <button class="btn btn-ghost btn-sm"><i class="fas fa-filter"></i></button>
-        </div>
+      <div class="tbl-head"><span class="tbl-title">All Users</span>
+        <div class="tbl-actions"><input class="tbl-search" type="text" placeholder="Search users..."></div>
       </div>
       <table>
-        <thead><tr><th>User</th><th>Email</th><th>Movies Bought</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>${USERS.map(u=>`
+        <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${users.map((u,i)=>`
           <tr>
             <td class="td-main"><div style="display:inline-flex;align-items:center;gap:8px">
-              <div class="av" style="background:${avColor(u.id)}20;color:${avColor(u.id)}">${ini(u.name)}</div>${u.name}</div></td>
+              <div class="av" style="background:${avColor(i)}20;color:${avColor(i)}">${ini(u.name||u.email||'?')}</div>${u.name||u.email}
+            </div></td>
             <td>${u.email}</td>
-            <td><span style="color:var(--text)">${u.movies}</span></td>
-            <td>${u.joined}</td>
-            <td>${pill(u.status)}</td>
+            <td>${u.created_at?u.created_at.slice(0,10):''}</td>
+            <td>${pill(u.status||'active')}</td>
             <td><div style="display:flex;gap:5px">
               <button class="btn btn-ghost btn-xs"><i class="fas fa-eye"></i></button>
-              <button class="btn btn-ghost btn-xs"><i class="fas fa-edit"></i></button>
-              <button class="btn btn-danger btn-xs">${u.status==='active'?'Block':'Unblock'}</button>
+              <button class="btn btn-danger btn-xs" onclick="toggleUserBlock('${u.id}','${u.status}')">${u.status==='blocked'?'Unblock':'Block'}</button>
             </div></td>
           </tr>`).join('')}
         </tbody>
@@ -888,34 +1110,34 @@ function usersPage(){
   </div>`;
 }
 
-/* ══════════════════════════════════════
-   ADMIN: DJS
-══════════════════════════════════════ */
+/* ADMIN: DJS */
 function djsPage(){
+  const djs=S.dbDJs.length>0?S.dbDJs:[
+    {id:1,name:'DJ Kinetic',email:'kinetic@mail.com',status:'active'},
+    {id:2,name:'DJ Apex',email:'apex@mail.com',status:'active'},
+  ];
   return `<div class="page active">
     <div class="ph">
-      <div class="ph-left"><div class="page-title">DJs</div><div class="page-sub">${DJS.length} DJ partners</div></div>
-      <div class="ph-right"><button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add DJ</button></div>
+      <div class="ph-left"><div class="page-title">DJs</div><div class="page-sub">${djs.length} DJ partners</div></div>
+      <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="inviteDJ()"><i class="fas fa-plus"></i> Add DJ</button></div>
     </div>
     <div class="tbl-card">
-      <div class="tbl-head">
-        <span class="tbl-title">DJ Partners</span>
+      <div class="tbl-head"><span class="tbl-title">DJ Partners</span>
         <div class="tbl-actions"><input class="tbl-search" type="text" placeholder="Search DJs..."></div>
       </div>
       <table>
-        <thead><tr><th>DJ Name</th><th>Email</th><th>Movies</th><th>Total Earnings</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>${DJS.map(d=>`
+        <thead><tr><th>DJ Name</th><th>Email</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${djs.map((d,i)=>`
           <tr>
             <td class="td-main"><div style="display:inline-flex;align-items:center;gap:8px">
-              <div class="av" style="background:${avColor(d.id)}20;color:${avColor(d.id)}">${ini(d.name)}</div>${d.name}</div></td>
+              <div class="av" style="background:${avColor(i+1)}20;color:${avColor(i+1)}">${ini(d.name||d.email||'?')}</div>${d.name||d.email}
+            </div></td>
             <td>${d.email}</td>
-            <td>${d.movies}</td>
-            <td style="color:var(--accent);font-weight:600">${fmt(d.earnings)}</td>
-            <td>${d.joined}</td>
-            <td>${pill(d.status)}</td>
+            <td>${d.created_at?d.created_at.slice(0,10):''}</td>
+            <td>${pill(d.status||'active')}</td>
             <td><div style="display:flex;gap:5px">
               <button class="btn btn-ghost btn-xs"><i class="fas fa-edit"></i></button>
-              <button class="btn btn-danger btn-xs">${d.status==='active'?'Block':'Unblock'}</button>
+              <button class="btn btn-danger btn-xs" onclick="toggleUserBlock('${d.id}','${d.status}')">${d.status==='blocked'?'Unblock':'Block'}</button>
             </div></td>
           </tr>`).join('')}
         </tbody>
@@ -924,93 +1146,69 @@ function djsPage(){
   </div>`;
 }
 
-/* ══════════════════════════════════════
-   ADMIN: PAYMENTS
-══════════════════════════════════════ */
+/* ADMIN: PAYMENTS */
 function payTable(data){
-  return `<div class="tbl-card">
-    <table>
-      <thead><tr><th>ID</th><th>User</th><th>Movie</th><th>DJ</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-      <tbody>${data.map(p=>`
-        <tr>
-          <td style="color:var(--text3);font-size:11px">${p.id}</td>
-          <td class="td-main">${p.user}</td>
-          <td>${p.movie}</td>
-          <td style="color:var(--text2)">${p.dj}</td>
-          <td style="color:var(--accent);font-weight:600">${fmt(p.amount)}</td>
-          <td>${pill(p.status)}</td>
-          <td style="color:var(--text3)">${p.date}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>`;
+  return `<div class="tbl-card"><table>
+    <thead><tr><th>ID</th><th>User</th><th>Movie</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>${data.map(p=>`
+      <tr>
+        <td style="color:var(--text3);font-size:11px">${p.id||'—'}</td>
+        <td class="td-main">${p.user||'—'}</td>
+        <td>${p.movie||'—'}</td>
+        <td style="color:var(--accent);font-weight:600">${fmt(p.amount)}</td>
+        <td>${pill(p.status)}</td>
+        <td style="color:var(--text3)">${p.date||p.created_at?.slice(0,10)||'—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>`;
 }
 
 function paymentsPage(){
+  const pays=S.dbPayments.length>0?S.dbPayments:[
+    {id:'#P001',user:'Amara Osei',movie:'Midnight Protocol',amount:4.99,status:'paid',date:'May 1'},
+    {id:'#P002',user:'Kwame Nkrumah',movie:'Velocity',amount:6.99,status:'paid',date:'Apr 30'},
+    {id:'#P003',user:'Yemi Adeyemi',movie:'Neon Requiem',amount:5.99,status:'pending',date:'Apr 29'},
+  ];
+  const totalRev=pays.filter(p=>p.status==='paid').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const pending=pays.filter(p=>p.status==='pending').reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const failed=pays.filter(p=>p.status==='failed').reduce((s,p)=>s+parseFloat(p.amount||0),0);
   return `<div class="page active">
     <div class="ph">
       <div class="ph-left"><div class="page-title">Payments</div><div class="page-sub">All transaction records</div></div>
-      <div class="ph-right">
-        <select class="sort-sel"><option>All Status</option><option>Paid</option><option>Pending</option><option>Failed</option></select>
-        <button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button>
-      </div>
+      <div class="ph-right"><button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button></div>
     </div>
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-      ${[
-        {l:'Total Revenue',v:'$18,492',c:'var(--accent)'},
-        {l:'Pending',v:'$249',c:'var(--accent)'},
-        {l:'Failed',v:'$48',c:'var(--red)'},
-      ].map(s=>`<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="color:${s.c}">${s.v}</div></div>`).join('')}
+      ${[{l:'Total Revenue',v:fmt(totalRev),c:'var(--accent)'},{l:'Pending',v:fmt(pending),c:'var(--accent)'},{l:'Failed',v:fmt(failed),c:'var(--red)'}]
+        .map(s=>`<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="color:${s.c}">${s.v}</div></div>`).join('')}
     </div>
-    <div class="tbl-card">
-      <div class="tbl-head">
-        <span class="tbl-title">All Transactions</span>
-        <div class="tbl-actions"><input class="tbl-search" type="text" placeholder="Search..."></div>
-      </div>
-      <table>
-        <thead><tr><th>ID</th><th>User</th><th>Movie</th><th>DJ</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-        <tbody>${PAYMENTS.map(p=>`
-          <tr>
-            <td style="color:var(--text3);font-size:11px">${p.id}</td>
-            <td class="td-main">${p.user}</td>
-            <td>${p.movie}</td>
-            <td style="color:var(--text2)">${p.dj}</td>
-            <td style="color:var(--accent);font-weight:600">${fmt(p.amount)}</td>
-            <td>${pill(p.status)}</td>
-            <td style="color:var(--text3)">${p.date}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
+    ${payTable(pays)}
   </div>`;
 }
 
-/* ══════════════════════════════════════
-   ADMIN: NOTIFICATIONS
-══════════════════════════════════════ */
+/* ADMIN: NOTIFICATIONS */
 function notificationsPage(){
   return `<div class="page active">
     <div class="ph">
       <div class="ph-left"><div class="page-title">Notifications</div></div>
-      <div class="ph-right"><button class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Send Broadcast</button></div>
+      <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="sendBroadcast()"><i class="fas fa-paper-plane"></i> Send</button></div>
     </div>
     <div class="form-card">
       <div class="form-card-title"><i class="fas fa-paper-plane" style="color:var(--accent);margin-right:6px"></i>Broadcast Message</div>
       <div class="fgrid">
         <div class="fg"><label>Target Audience</label>
-          <select><option>All Users & DJs</option><option>DJs Only</option><option>Users Only</option><option>Specific User</option></select></div>
-        <div class="fg"><label>Priority Level</label>
-          <select><option>Normal</option><option>High</option><option>Urgent</option></select></div>
-        <div class="fg full"><label>Message</label>
-          <textarea placeholder="Type your notification message here..."></textarea></div>
+          <select id="notif-target"><option value="all">All Users & DJs</option><option value="djs">DJs Only</option><option value="users">Users Only</option></select></div>
+        <div class="fg"><label>Priority</label>
+          <select id="notif-priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+        <div class="fg full"><label>Title</label><input type="text" id="notif-title" placeholder="Notification title..."></div>
+        <div class="fg full"><label>Message</label><textarea id="notif-msg" placeholder="Type your notification message here..."></textarea></div>
       </div>
       <div class="form-footer">
-        <button class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send Now</button>
+        <button class="btn btn-primary" onclick="sendBroadcast()"><i class="fas fa-paper-plane"></i> Send Now</button>
         <button class="btn btn-ghost">Schedule</button>
       </div>
     </div>
     <div class="sec-title">Recent Notifications</div>
-    <div class="notif-list">${NOTIFS.map(n=>`
+    <div class="notif-list">${NOTIFS_LOCAL.map(n=>`
       <div class="notif-item${n.unread?' unread':''}">
         <div class="n-icon" style="background:${n.bg}"><i class="fas ${n.icon}" style="color:${n.ic}"></i></div>
         <div class="n-body"><div class="n-msg">${n.msg}</div><div class="n-time">${n.time}</div></div>
@@ -1020,9 +1218,7 @@ function notificationsPage(){
   </div>`;
 }
 
-/* ══════════════════════════════════════
-   ADMIN: SETTINGS
-══════════════════════════════════════ */
+/* ADMIN: SETTINGS */
 function settingsPage(){
   return `<div class="page active">
     <div class="ph"><div class="ph-left"><div class="page-title">Settings</div></div></div>
@@ -1037,7 +1233,7 @@ function settingsPage(){
       <div class="fgrid">
         <div class="fg"><label>Platform Name</label><input type="text" value="CineBox"></div>
         <div class="fg"><label>Support Email</label><input type="email" value="support@cinebox.io"></div>
-        <div class="fg"><label>Default Currency</label><select><option>USD ($)</option><option>KES (Ksh)</option><option>GHS (₵)</option><option>NGN (₦)</option></select></div>
+        <div class="fg"><label>Default Currency</label><select><option>USD ($)</option><option>KES (Ksh)</option><option>TZS (TSh)</option><option>GHS (₵)</option><option>NGN (₦)</option></select></div>
         <div class="fg"><label>Download Link Expiry</label><select><option>24 Hours</option><option>48 Hours</option><option>7 Days</option></select></div>
         <div class="fg full"><label>Platform Tagline</label><input type="text" value="Africa's Premium Movie Streaming & Download Platform"></div>
       </div>
@@ -1045,14 +1241,12 @@ function settingsPage(){
     </div>`:''}
     ${S.settingsTab==='security'?`
     <div class="form-card">
-      <div class="form-card-title">Security Settings</div>
+      <div class="form-card-title">Change Password</div>
       <div class="fgrid">
-        <div class="fg"><label>Current Password</label><input type="password" placeholder="••••••••"></div>
-        <div class="fg"><label>New Password</label><input type="password" placeholder="••••••••"></div>
-        <div class="fg"><label>Confirm New Password</label><input type="password" placeholder="••••••••"></div>
-        <div class="fg"><label>Session Timeout</label><select><option>1 Hour</option><option>4 Hours</option><option>24 Hours</option></select></div>
+        <div class="fg"><label>New Password</label><input type="password" id="new-pass" placeholder="Min. 8 characters"></div>
+        <div class="fg"><label>Confirm Password</label><input type="password" id="confirm-pass" placeholder="Repeat password"></div>
       </div>
-      <div class="form-footer"><button class="btn btn-danger"><i class="fas fa-key"></i> Update Password</button></div>
+      <div class="form-footer"><button class="btn btn-danger" onclick="changePassword()"><i class="fas fa-key"></i> Update Password</button></div>
     </div>`:''}
     ${S.settingsTab==='payment'?`
     <div class="form-card">
@@ -1070,13 +1264,14 @@ function settingsPage(){
     <div class="form-card">
       <div class="form-card-title">Cloudinary Integration</div>
       <div class="fgrid">
-        <div class="fg"><label>Cloud Name</label><input type="text" placeholder="your-cloud-name"></div>
-        <div class="fg"><label>API Key</label><input type="text" placeholder="Your API key"></div>
-        <div class="fg full"><label>API Secret</label><input type="text" placeholder="Your API secret"></div>
-        <div class="fg"><label>Upload Preset (Posters)</label><input type="text" placeholder="posters_unsigned"></div>
-        <div class="fg"><label>Upload Preset (Trailers)</label><input type="text" placeholder="trailers_unsigned"></div>
+        <div class="fg"><label>Cloud Name</label><input type="text" value="${CLOUD_NAME}" readonly></div>
+        <div class="fg"><label>Upload Preset (Posters)</label><input type="text" value="${CLOUD_PRESET_POSTERS}"></div>
+        <div class="fg full"><label>Upload Preset (Trailers)</label><input type="text" value="${CLOUD_PRESET_TRAILERS}"></div>
       </div>
-      <div class="form-footer"><button class="btn btn-primary">Save Cloudinary Config</button><button class="btn btn-ghost">Test Connection</button></div>
+      <div style="background:var(--accentDim);border:1px solid var(--accentBorder);border-radius:var(--radiusSm);padding:12px;font-size:12px;color:var(--text2);margin-top:4px">
+        <i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>
+        Create <strong style="color:var(--text)">unsigned upload presets</strong> named <code style="color:var(--accent)">cinebox_posters</code> and <code style="color:var(--accent)">cinebox_trailers</code> in your Cloudinary dashboard.
+      </div>
     </div>`:''}
   </div>`;
 }
@@ -1085,30 +1280,36 @@ function settingsPage(){
    DJ PANEL
 ══════════════════════════════════════ */
 function djDashboard(){
+  const myMovs=S.dbMovies;
+  const myPays=S.dbPayments;
+  const totalEarned=myPays.filter(p=>p.status==='paid').reduce((s,p)=>s+parseFloat(p.amount||0),0);
   const bars=[30,52,45,68,55,80,72];
   const months=['Nov','Dec','Jan','Feb','Mar','Apr','May'];
   return `<div class="page active">
     <div class="hero-band">
-      <div class="hero-av">K</div>
-      <div class="hero-text"><h2>Welcome back, DJ Kinetic 👋</h2><p>Manage your uploads and track your earnings</p></div>
+      <div class="hero-av">${ini(S.profile?.name||'DJ')}</div>
+      <div class="hero-text"><h2>Welcome back, ${S.profile?.name||'DJ Partner'} 👋</h2><p>Manage your uploads and track your earnings</p></div>
       <div class="hero-actions"><button class="btn btn-primary" onclick="go('dj-upload')"><i class="fas fa-upload"></i> Upload Movie</button></div>
     </div>
     <div class="earn-row">
-      <div class="earn-card"><div class="earn-lbl">Total Earnings</div><div class="earn-val">$842.00</div><div class="earn-note">All time</div></div>
-      <div class="earn-card"><div class="earn-lbl">This Month</div><div class="earn-val">$248.00</div><div class="earn-note">May 2025</div></div>
-      <div class="earn-card"><div class="earn-lbl" >Movies Uploaded</div><div class="earn-val" style="color:var(--blue)">12</div><div class="earn-note">Total movies</div></div>
+      <div class="earn-card"><div class="earn-lbl">Total Earnings</div><div class="earn-val">${fmt(totalEarned)}</div><div class="earn-note">All time</div></div>
+      <div class="earn-card"><div class="earn-lbl">Movies Uploaded</div><div class="earn-val" style="color:var(--blue)">${myMovs.length}</div></div>
+      <div class="earn-card"><div class="earn-lbl">Pending Payout</div><div class="earn-val" style="color:var(--text2)">$0.00</div><div class="earn-note">Processes on 1st</div></div>
     </div>
     <div class="chart-box" style="margin-bottom:18px">
       <div class="chart-head"><div class="chart-title">Monthly Earnings</div><div class="chart-sub">Last 7 months</div></div>
       <div class="bar-track">${bars.map((h,i)=>`
         <div class="bar-col">
-          <div class="bar-fill" style="height:${h}%;background:var(--blueDim);border-color:#4a9eff30" title="${months[i]}"></div>
+          <div class="bar-fill" style="height:${h}%;background:var(--blueDim);border-color:#4a9eff30"></div>
           <div class="bar-lbl">${months[i]}</div>
         </div>`).join('')}
       </div>
     </div>
     <div class="sec-title">My Latest Uploads</div>
-    <div class="movie-grid cols4">${MOVIES.filter(m=>m.dj==='DJ Kinetic').map(m=>movieCard(m)).join('')}</div>
+    ${myMovs.length>0
+      ?`<div class="movie-grid cols4">${myMovs.slice(0,4).map(m=>movieCard(m)).join('')}</div>`
+      :`<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fas fa-film" style="font-size:32px;display:block;margin-bottom:10px"></i>No movies yet. <span class="auth-link" onclick="go('dj-upload')">Upload your first movie</span></div>`
+    }
   </div>`;
 }
 
@@ -1118,14 +1319,15 @@ function djUpload(){
     <div class="form-card">
       <div class="form-card-title"><i class="fas fa-info-circle" style="color:var(--blue);margin-right:6px"></i>Movie Details</div>
       <div class="fgrid">
-        <div class="fg"><label>Movie Title *</label><input type="text" placeholder="e.g. Midnight Protocol"></div>
-        <div class="fg"><label>Category *</label><select><option>Action</option><option>Sci-Fi</option><option>Drama</option><option>Thriller</option><option>Horror</option><option>Romance</option><option>Comedy</option></select></div>
-        <div class="fg"><label>Price (USD) *</label><input type="number" placeholder="4.99" step="0.01" min="0"></div>
-        <div class="fg"><label>Language</label><select><option>English</option><option>Swahili</option><option>Yoruba</option><option>Twi</option><option>French</option></select></div>
-        <div class="fg full"><label>Description *</label><textarea placeholder="Brief description of the movie (2-3 sentences)..."></textarea></div>
-        <div class="fg full"><label>Temporary Download Link *</label><input type="text" placeholder="https://drive.google.com/... (expires automatically)"></div>
-        <div class="fg"><label>Release Year</label><input type="number" placeholder="2025" min="1900" max="2030"></div>
-        <div class="fg"><label>Duration (minutes)</label><input type="number" placeholder="120"></div>
+        <div class="fg"><label>Movie Title *</label><input type="text" id="mv-title" placeholder="e.g. Midnight Protocol"></div>
+        <div class="fg"><label>Category *</label>
+          <select id="mv-cat"><option>Action</option><option>Sci-Fi</option><option>Drama</option><option>Thriller</option><option>Horror</option><option>Romance</option><option>Comedy</option></select></div>
+        <div class="fg"><label>Price (USD) *</label><input type="number" id="mv-price" placeholder="4.99" step="0.01" min="0"></div>
+        <div class="fg"><label>Language</label>
+          <select id="mv-lang"><option>English</option><option>Swahili</option><option>Yoruba</option><option>French</option></select></div>
+        <div class="fg full"><label>Description *</label><textarea id="mv-desc" placeholder="Brief description of the movie..."></textarea></div>
+        <div class="fg full"><label>Temporary Download Link</label><input type="text" id="mv-dl" placeholder="https://drive.google.com/..."></div>
+        <div class="fg full"><label>Or Paste YouTube Trailer URL</label><input type="text" id="mv-yt" placeholder="https://www.youtube.com/watch?v=..."></div>
       </div>
     </div>
     <div class="form-card">
@@ -1133,63 +1335,63 @@ function djUpload(){
       <div class="fgrid">
         <div class="fg">
           <label>Movie Poster *</label>
-          <div class="upload-zone"><i class="fas fa-image"></i><p>Click to upload poster</p><span>JPG, PNG, WebP · max 5MB · recommended 400×600px</span></div>
+          <div class="upload-zone${S.posterUrl?' has-file':''}" onclick="openCloudinaryUpload('poster')">
+            ${S.posterUrl
+              ?`<img src="${S.posterUrl}" style="height:80px;border-radius:6px;object-fit:cover;margin-bottom:6px"><p style="color:var(--green)"><i class="fas fa-check-circle"></i> Poster uploaded!</p><span>Click to replace</span>`
+              :`<i class="fas fa-image"></i><p>Click to upload poster</p><span>JPG, PNG, WebP · max 5MB</span>`}
+          </div>
         </div>
         <div class="fg">
           <label>Trailer Video</label>
-          <div class="upload-zone"><i class="fas fa-video"></i><p>Click to upload trailer</p><span>MP4, MOV · max 200MB · 1-3 minutes</span></div>
+          <div class="upload-zone${S.trailerUrl?' has-file':''}" onclick="openCloudinaryUpload('trailer')">
+            ${S.trailerUrl
+              ?`<i class="fas fa-check-circle" style="color:var(--green)"></i><p style="color:var(--green)">Trailer uploaded!</p><span>Click to replace</span>`
+              :`<i class="fas fa-video"></i><p>Click to upload trailer</p><span>MP4, MOV · max 200MB</span>`}
+          </div>
         </div>
-        <div class="fg full"><label>Or Paste YouTube Trailer URL</label><input type="text" placeholder="https://www.youtube.com/watch?v=..."></div>
       </div>
     </div>
     <div class="form-footer">
-      <button class="btn btn-primary btn-lg"><i class="fas fa-upload"></i> Publish Movie</button>
+      <button id="publish-btn" class="btn btn-primary btn-lg" onclick="submitMovie()"><i class="fas fa-upload"></i> Publish Movie</button>
       <button class="btn btn-ghost">Save as Draft</button>
     </div>
   </div>`;
 }
 
 function djMovies(){
+  const myMovs=S.dbMovies;
   return `<div class="page active">
     <div class="ph">
-      <div class="ph-left"><div class="page-title">My Movies</div><div class="page-sub">12 movies in your catalogue</div></div>
+      <div class="ph-left"><div class="page-title">My Movies</div><div class="page-sub">${myMovs.length} movies in your catalogue</div></div>
       <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="go('dj-upload')"><i class="fas fa-plus"></i> Upload New</button></div>
     </div>
-    <div class="movie-grid">
-      ${MOVIES.slice(0,6).map(m=>`
-        <div class="movie-card">
-          <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg},#050508)"><i class="fas fa-film"></i></div>
-          <div class="mc-info">
-            <div class="mc-title">${m.title}</div>
-            <div class="mc-foot"><div class="mc-price">${fmt(m.price)}</div><div class="mc-cat">${m.cat}</div></div>
-          </div>
-          <div style="padding:0 8px 8px;display:flex;gap:4px">
-            <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-edit"></i> Edit</button>
-            <button class="btn btn-danger btn-xs"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>`).join('')}
-    </div>
+    ${myMovs.length>0
+      ?`<div class="movie-grid">${myMovs.map(m=>movieCard(m,true)).join('')}</div>`
+      :`<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fas fa-film" style="font-size:32px;display:block;margin-bottom:10px"></i>No movies yet. <span class="auth-link" onclick="go('dj-upload')">Upload your first movie</span></div>`
+    }
   </div>`;
 }
 
 function djPayments(){
+  const pays=S.dbPayments;
+  const totalEarned=pays.filter(p=>p.status==='paid').reduce((s,p)=>s+parseFloat(p.amount||0),0);
   return `<div class="page active">
-    <div class="ph"><div class="ph-left"><div class="page-title">Earnings</div><div class="page-sub">Your revenue breakdown</div></div>
+    <div class="ph"><div class="ph-left"><div class="page-title">Earnings</div></div>
       <div class="ph-right"><button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button></div>
     </div>
     <div class="earn-row">
-      <div class="earn-card"><div class="earn-lbl">Total Earned</div><div class="earn-val">$842.00</div><div class="earn-note">Platform takes 20%</div></div>
-      <div class="earn-card"><div class="earn-lbl">This Month</div><div class="earn-val">$248.00</div></div>
-      <div class="earn-card"><div class="earn-lbl">Pending Payout</div><div class="earn-val" style="color:var(--text2)">$124.00</div><div class="earn-note">Processes on 1st</div></div>
+      <div class="earn-card"><div class="earn-lbl">Total Earned</div><div class="earn-val">${fmt(totalEarned)}</div></div>
+      <div class="earn-card"><div class="earn-lbl">This Month</div><div class="earn-val">—</div></div>
+      <div class="earn-card"><div class="earn-lbl">Pending Payout</div><div class="earn-val" style="color:var(--text2)">$0.00</div><div class="earn-note">Processes on 1st</div></div>
     </div>
-    ${payTable(PAYMENTS.slice(0,5))}
+    ${pays.length>0?payTable(pays.slice(0,10)):`<div style="text-align:center;padding:40px;color:var(--text3)">No transactions yet.</div>`}
   </div>`;
 }
 
 function djNotifs(){
   return `<div class="page active">
     <div class="ph"><div class="ph-left"><div class="page-title">Notifications</div></div></div>
-    <div class="notif-list">${NOTIFS.map(n=>`
+    <div class="notif-list">${NOTIFS_LOCAL.map(n=>`
       <div class="notif-item${n.unread?' unread':''}">
         <div class="n-icon" style="background:${n.bg}"><i class="fas ${n.icon}" style="color:${n.ic}"></i></div>
         <div class="n-body"><div class="n-msg">${n.msg}</div><div class="n-time">${n.time}</div></div>
@@ -1200,32 +1402,31 @@ function djNotifs(){
 }
 
 /* ══════════════════════════════════════
-   USER PANEL
+   USER / GUEST PAGES
 ══════════════════════════════════════ */
 function userHome(){
   const feat=MOVIES[0];
-  let filtered=S.searchQ
-    ?MOVIES.filter(m=>m.title.toLowerCase().includes(S.searchQ.toLowerCase()))
-    :MOVIES;
-  if(S.cat!=='All') filtered=filtered.filter(m=>m.cat===S.cat);
+  let filtered=S.searchQ?MOVIES.filter(m=>m.title.toLowerCase().includes(S.searchQ.toLowerCase())):MOVIES;
+  if(S.cat!=='All') filtered=filtered.filter(m=>(m.cat||m.category_id)===S.cat);
   return `<div class="page active">
     <div class="featured-wrap">
-      <div class="featured-img" style="background:linear-gradient(135deg,${feat.bg},#060612,#0a060f)">
-        <i class="fas fa-film" style="opacity:.06;font-size:80px"></i>
+      <div class="featured-img" style="background:linear-gradient(135deg,${feat?feat.bg:'#12102a'},#060612,#0a060f)">
+        ${feat?.poster_url?`<img src="${feat.poster_url}" alt="${feat.title}">`:''}
+        <i class="fas fa-film featured-img-icon${feat?.poster_url?' hidden':''}" style="opacity:.06;font-size:80px"></i>
       </div>
       <div class="featured-overlay">
         <div>
           <div class="feat-tag">⭐ Featured This Week</div>
-          <div class="feat-title">${feat.title}</div>
+          <div class="feat-title">${feat?.title||'Welcome to CineBox'}</div>
           <div class="feat-meta">
-            <span class="feat-pill"><i class="fas fa-tag" style="margin-right:4px;font-size:9px"></i>${feat.cat}</span>
-            <span class="feat-pill">by ${feat.dj}</span>
-            <span class="feat-pill" style="color:var(--accent);border-color:var(--accentBorder)">${fmt(feat.price)}</span>
+            <span class="feat-pill"><i class="fas fa-tag" style="margin-right:4px;font-size:9px"></i>${feat?.cat||'Movies'}</span>
+            ${feat?`<span class="feat-pill">by ${feat.dj_name||feat.dj||'Unknown'}</span>`:''}
+            ${feat?`<span class="feat-pill" style="color:var(--accent);border-color:var(--accentBorder)">${fmt(feat.price)}</span>`:''}
           </div>
-          <div class="feat-desc">${feat.desc}</div>
+          <div class="feat-desc">${feat?.desc||'Stream and download your favourite movies. Browse the catalogue below.'}</div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary"><i class="fas fa-play"></i> Watch Trailer</button>
-            <button class="btn btn-ghost" onclick="buyMovie(${feat.id})">Buy · ${fmt(feat.price)}</button>
+            ${feat?`<button class="btn btn-ghost" onclick="buyMovie(${feat.id})">Buy · ${fmt(feat.price)}</button>`:''}
           </div>
         </div>
       </div>
@@ -1235,154 +1436,92 @@ function userHome(){
       <select class="sort-sel"><option>Latest</option><option>Popular</option><option>Price: Low</option></select>
     </div>
     <div class="sec-title">Browse Movies <span style="font-size:11px;color:var(--text3);font-weight:400;font-family:var(--font)">${filtered.length} titles</span></div>
-    ${S.gridMode==='grid'
-      ?`<div class="movie-grid">${filtered.map(m=>movieCard(m)).join('')}</div>`
-      :`<div class="movie-list">${filtered.map(m=>movieListItem(m)).join('')}</div>`
+    ${MOVIES.length===0
+      ?`<div style="text-align:center;padding:40px;color:var(--text3)"><i class="fas fa-film" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i>No movies available yet. Check back soon!</div>`
+      :S.gridMode==='grid'
+        ?`<div class="movie-grid">${filtered.map(m=>movieCard(m)).join('')}</div>`
+        :`<div class="movie-list">${filtered.map(m=>movieListItem(m)).join('')}</div>`
     }
   </div>`;
 }
 
 function myMoviesPage(){
   return `<div class="page active">
-    <div class="ph"><div class="ph-left"><div class="page-title">My Movies</div><div class="page-sub">3 purchased movies</div></div></div>
-    <div class="movie-grid cols4">
-      ${MOVIES.slice(0,3).map(m=>`
-        <div class="movie-card">
-          <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg},#050508)">
-            <i class="fas fa-film"></i>
-            <div style="position:absolute;top:6px;right:6px;background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;color:var(--green)">OWNED</div>
-          </div>
-          <div class="mc-info">
-            <div class="mc-title">${m.title}</div>
-            <div class="mc-foot"><div class="mc-price">${fmt(m.price)}</div><div class="mc-cat">${m.cat}</div></div>
-          </div>
-          <div style="padding:0 8px 8px;display:flex;gap:4px">
-            <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-play"></i> Trailer</button>
-            <button class="btn btn-success btn-xs" style="flex:1" onclick="go('downloads')"><i class="fas fa-download"></i></button>
-          </div>
-        </div>`).join('')}
-    </div>
+    <div class="ph"><div class="ph-left"><div class="page-title">My Movies</div><div class="page-sub">Purchased movies</div></div></div>
+    ${!S.currentUser
+      ?`<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <i class="fas fa-lock" style="font-size:40px;display:block;margin-bottom:12px;opacity:.4"></i>
+          <div style="font-size:14px;margin-bottom:8px">Sign in to view your purchased movies</div>
+          <button class="btn btn-primary" onclick="openModal('login')"><i class="fas fa-right-to-bracket"></i> Sign In</button>
+        </div>`
+      :`<div class="movie-grid cols4">
+        ${MOVIES.slice(0,3).map(m=>`
+          <div class="movie-card">
+            <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg||bgForCat(m.cat)},#050508)">
+              ${m.poster_url?`<img src="${m.poster_url}" alt="${m.title}">`:'<i class="fas fa-film mc-poster-icon"></i>'}
+              <div style="position:absolute;top:6px;right:6px;background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;color:var(--green)">OWNED</div>
+            </div>
+            <div class="mc-info">
+              <div class="mc-title">${m.title}</div>
+              <div class="mc-foot"><div class="mc-price">${fmt(m.price)}</div><div class="mc-cat">${m.cat||''}</div></div>
+            </div>
+            <div style="padding:0 8px 8px;display:flex;gap:4px">
+              <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-play"></i> Trailer</button>
+              <button class="btn btn-success btn-xs" style="flex:1" onclick="go('downloads')"><i class="fas fa-download"></i></button>
+            </div>
+          </div>`).join('')}
+      </div>`}
   </div>`;
 }
 
 function downloadsPage(){
   return `<div class="page active">
     <div class="ph"><div class="ph-left"><div class="page-title">Downloads</div><div class="page-sub">Your purchase download links</div></div></div>
-    <div class="dl-success">
-      <i class="fas fa-circle-check"></i>
-      <p>Your download links are ready. Links expire 24 hours after purchase for security. Re-purchase to get a new link.</p>
-    </div>
-    <div class="tbl-card">
-      <table>
-        <thead><tr><th>Movie</th><th>Purchased</th><th>Link Status</th><th>Action</th></tr></thead>
-        <tbody>
-          ${MOVIES.slice(0,3).map((m,i)=>`
-            <tr>
-              <td class="td-main"><div style="display:flex;align-items:center;gap:8px">
-                <div style="width:36px;height:54px;border-radius:5px;background:linear-gradient(145deg,${m.bg},#050508);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text4);flex-shrink:0"><i class="fas fa-film"></i></div>
-                <div><div>${m.title}</div><div style="font-size:10px;color:var(--text3)">${m.cat} · ${m.dj}</div></div>
-              </div></td>
-              <td>${['May 1, 2025','Apr 30, 2025','Apr 28, 2025'][i]}</td>
-              <td>${i===0
-                ?`<span class="pill pill-amber"><i class="fas fa-clock"></i>Expires in 18h</span>`
-                :`<span class="pill pill-gray"><i class="fas fa-xmark"></i>Expired</span>`
-              }</td>
-              <td>
-                ${i===0
-                  ?`<button class="btn btn-success btn-sm"><i class="fas fa-download"></i> Download</button>`
-                  :`<button class="btn btn-primary btn-sm" onclick="buyMovie(${m.id})">Repurchase</button>`
-                }
-              </td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
+    ${!S.currentUser
+      ?`<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <i class="fas fa-lock" style="font-size:40px;display:block;margin-bottom:12px;opacity:.4"></i>
+          <div style="font-size:14px;margin-bottom:8px">Sign in to access your downloads</div>
+          <button class="btn btn-primary" onclick="openModal('login')"><i class="fas fa-right-to-bracket"></i> Sign In</button>
+        </div>`
+      :`<div class="dl-success">
+          <i class="fas fa-circle-check"></i>
+          <p>Your download links are ready. Links expire 24 hours after purchase for security. Re-purchase to get a new link.</p>
+        </div>
+        <div class="tbl-card">
+          <table>
+            <thead><tr><th>Movie</th><th>Purchased</th><th>Link Status</th><th>Action</th></tr></thead>
+            <tbody>
+              ${MOVIES.slice(0,2).map((m,i)=>`
+                <tr>
+                  <td class="td-main"><div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:36px;height:54px;border-radius:5px;background:linear-gradient(145deg,${m.bg||bgForCat(m.cat)},#050508);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text4);flex-shrink:0;overflow:hidden;position:relative">
+                      ${m.poster_url?`<img src="${m.poster_url}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`:'<i class="fas fa-film"></i>'}
+                    </div>
+                    <div><div>${m.title}</div><div style="font-size:10px;color:var(--text3)">${m.cat||''} · ${m.dj_name||m.dj||''}</div></div>
+                  </div></td>
+                  <td>${['May 1, 2025','Apr 30, 2025'][i]}</td>
+                  <td>${i===0
+                    ?`<span class="pill pill-amber"><i class="fas fa-clock"></i>Expires in 18h</span>`
+                    :`<span class="pill pill-gray"><i class="fas fa-xmark"></i>Expired</span>`}</td>
+                  <td>${i===0
+                    ?`<button class="btn btn-success btn-sm"><i class="fas fa-download"></i> Download</button>`
+                    :`<button class="btn btn-primary btn-sm" onclick="buyMovie(${m.id})">Repurchase</button>`}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
   </div>`;
 }
 
 function userNotifs(){
   return `<div class="page active">
     <div class="ph"><div class="ph-left"><div class="page-title">Notifications</div></div></div>
-    <div class="notif-list">${NOTIFS.slice(0,4).map(n=>`
+    <div class="notif-list">${NOTIFS_LOCAL.slice(0,4).map(n=>`
       <div class="notif-item${n.unread?' unread':''}">
         <div class="n-icon" style="background:${n.bg}"><i class="fas ${n.icon}" style="color:${n.ic}"></i></div>
         <div class="n-body"><div class="n-msg">${n.msg}</div><div class="n-time">${n.time}</div></div>
         ${n.unread?'<div class="n-dot"></div>':''}
       </div>`).join('')}
-    </div>
-  </div>`;
-}
-
-/* ══════════════════════════════════════
-   AUTH PAGES
-══════════════════════════════════════ */
-function buildLogin(){
-  return `<div class="auth-wrap">
-    <div class="auth-card">
-      <div class="auth-logo">
-        <div class="logo-mark">CB</div>
-        <div class="auth-logo-name">Cine<em>Box</em></div>
-      </div>
-      <div class="auth-h">Sign in to CineBox</div>
-      <div class="auth-s">Enter your email and password to continue</div>
-      <div class="auth-form">
-        <div class="fg"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
-        <div class="fg"><label>Password</label><input type="password" placeholder="••••••••"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
-            <input type="checkbox" style="accent-color:var(--accent)"> Remember me
-          </label>
-          <span class="auth-link" style="font-size:12px" onclick="switchPortal('forgot')">Forgot password?</span>
-        </div>
-        <button class="btn btn-primary btn-block btn-lg" onclick="switchPortal('admin');go('dashboard')">Sign In</button>
-        <div class="or-div">or continue as</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
-          <button class="btn btn-ghost" style="justify-content:center" onclick="switchPortal('admin')"><i class="fas fa-shield-halved"></i> Admin</button>
-          <button class="btn btn-ghost" style="justify-content:center" onclick="switchPortal('dj')"><i class="fas fa-headphones"></i> DJ</button>
-          <button class="btn btn-ghost" style="justify-content:center" onclick="switchPortal('user')"><i class="fas fa-user"></i> User</button>
-        </div>
-        <div style="text-align:center;font-size:12px;color:var(--text2)">New here? <span class="auth-link" onclick="switchPortal('register')">Create account</span></div>
-      </div>
-    </div>
-  </div>`;
-}
-
-function buildRegister(){
-  return `<div class="auth-wrap">
-    <div class="auth-card">
-      <div class="auth-logo">
-        <div class="logo-mark">CB</div>
-        <div class="auth-logo-name">Cine<em>Box</em></div>
-      </div>
-      <div class="auth-h">Create Account</div>
-      <div class="auth-s">Join CineBox and start streaming today</div>
-      <div class="auth-form">
-        <div class="fg"><label>Full Name</label><input type="text" placeholder="Your full name"></div>
-        <div class="fg"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
-        <div class="fg"><label>Phone Number (optional)</label><input type="tel" placeholder="+254 700 000 000"></div>
-        <div class="fg"><label>Password</label><input type="password" placeholder="Min. 8 characters"></div>
-        <div class="fg"><label>Confirm Password</label><input type="password" placeholder="Repeat password"></div>
-        <button class="btn btn-primary btn-block btn-lg" onclick="switchPortal('user');go('home')">Create Account</button>
-        <div style="text-align:center;font-size:12px;color:var(--text2)">Already have an account? <span class="auth-link" onclick="switchPortal('login')">Sign in</span></div>
-      </div>
-    </div>
-  </div>`;
-}
-
-function buildForgot(){
-  return `<div class="auth-wrap">
-    <div class="auth-card">
-      <div class="auth-logo">
-        <div class="logo-mark">CB</div>
-        <div class="auth-logo-name">Cine<em>Box</em></div>
-      </div>
-      <div class="auth-h">Reset Password</div>
-      <div class="auth-s">Enter your email and we'll send a reset link</div>
-      <div class="auth-form">
-        <div class="fg"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
-        <button class="btn btn-primary btn-block btn-lg"><i class="fas fa-paper-plane"></i> Send Reset Link</button>
-        <div style="text-align:center;font-size:12px;color:var(--text2)"><span class="auth-link" onclick="switchPortal('login')"><i class="fas fa-arrow-left" style="font-size:11px"></i> Back to Sign In</span></div>
-      </div>
     </div>
   </div>`;
 }
@@ -1404,23 +1543,20 @@ function buildPaymentPage(){
       <div class="pay-s">Secure checkout · Download access for 24 hours</div>
       <div class="pay-amount-box">
         <div class="pay-amount-lbl">Total Amount</div>
-        <div class="pay-amount-val">${fmt(m.price)}</div>
-        <div class="pay-movie">${m.title} · ${m.cat}</div>
+        <div class="pay-amount-val">${m?fmt(m.price):'$0.00'}</div>
+        <div class="pay-movie">${m?.title||'Movie'} · ${m?.cat||''}</div>
       </div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Select payment method:</div>
       <div class="pay-methods">
         ${methods.map((mt,i)=>`
           <div class="pay-method${S.payMethod===i?' sel':''}" onclick="S.payMethod=${i};render()">
             <div class="pay-m-icon"><i class="fas ${mt.icon}"></i></div>
-            <div>
-              <div class="pay-m-name">${mt.label}</div>
-              <div style="font-size:10px;color:var(--text3)">${mt.sub}</div>
-            </div>
+            <div><div class="pay-m-name">${mt.label}</div><div style="font-size:10px;color:var(--text3)">${mt.sub}</div></div>
             ${S.payMethod===i?`<i class="fas fa-circle-check" style="margin-left:auto;color:var(--accent)"></i>`:''}
           </div>`).join('')}
       </div>
-      <button class="btn btn-primary btn-block btn-lg" onclick="switchPortal('user');go('downloads')">
-        <i class="fas fa-lock"></i> Pay ${fmt(m.price)} Securely
+      <button class="btn btn-primary btn-block btn-lg" onclick="completePayment()">
+        <i class="fas fa-lock"></i> Pay ${m?fmt(m.price):'$0.00'} Securely
       </button>
       <div class="pay-note"><i class="fas fa-shield-halved" style="color:var(--green);margin-right:4px"></i>256-bit encrypted · Download link sent instantly after payment</div>
     </div>
@@ -1432,40 +1568,112 @@ function buildPaymentPage(){
 ══════════════════════════════════════ */
 function go(page){
   S.page=page;
+  // Close sidebar on mobile after navigating
+  if(window.innerWidth < 769){ S.collapsed=true; }
   render();
   document.querySelector('.content-area')?.scrollTo(0,0);
 }
 
-function switchPortal(portal){
-  S.prevPortal=S.portal;
-  S.portal=portal;
-  const defaults={admin:'dashboard',dj:'dj-dashboard',user:'home',login:'',register:'',forgot:'',payment:''};
-  if(defaults[portal]!==undefined) S.page=defaults[portal];
-  render();
+function toggleSidebar(){
+  S.collapsed = !S.collapsed;
+  // Update DOM directly for instant feel
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const mainWrap = document.getElementById('main-wrap');
+  if(sidebar) sidebar.classList.toggle('collapsed', S.collapsed);
+  if(overlay) overlay.classList.toggle('active', !S.collapsed);
+  // On desktop, shift main content
+  if(window.innerWidth >= 769 && mainWrap){
+    mainWrap.style.marginLeft = S.collapsed ? '0' : 'var(--sidebar)';
+  }
 }
 
-function toggleSidebar(){
-  S.collapsed=!S.collapsed;
-  const sb=document.getElementById('sidebar');
-  if(sb) sb.classList.toggle('collapsed');
+function togglePassVis(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.type=el.type==='password'?'text':'password';
 }
 
 function buyMovie(id){
-  S.buyMovieId=id;
-  S.prevPortal=S.portal;
-  S.portal='payment';
-  render();
+  if(!S.currentUser){
+    toast('Please sign in to purchase movies','error');
+    openModal('login');
+    return;
+  }
+  S.buyMovieId=id;S.prevPortal=S.portal;S.portal='payment';render();
 }
 
-function openMovieDetail(id){
-  // Stub – would open movie detail modal/page
-  console.log('Open movie',id);
+function openTrailer(url){ window.open(url,'_blank'); }
+function openMovieDetail(id){}
+
+async function completePayment(){
+  await recordPayment(S.buyMovieId);
+  toast('Payment initiated! Processing...','success');
+  S.portal=S.prevPortal||'user';go('downloads');
+}
+
+async function toggleUserBlock(userId,currentStatus){
+  const newStatus=currentStatus==='blocked'?'active':'blocked';
+  const {error}=await sb.from('profiles').update({status:newStatus}).eq('id',userId);
+  if(error){toast('Failed: '+error.message,'error');return}
+  toast(`User ${newStatus==='blocked'?'blocked':'unblocked'} successfully`,'success');
+  await loadData();render();
+}
+
+async function deleteMovie(id){
+  if(!confirm('Delete this movie?')) return;
+  const {error}=await sb.from('movies').delete().eq('id',id);
+  if(error){toast('Failed: '+error.message,'error');return}
+  toast('Movie deleted','success');
+  await loadData();render();
+}
+
+function editMovie(id){ toast('Edit functionality — open movie form pre-filled','info'); }
+
+async function changePassword(){
+  const np=document.getElementById('new-pass')?.value;
+  const cp=document.getElementById('confirm-pass')?.value;
+  if(!np||np!==cp){toast('Passwords do not match','error');return}
+  const {error}=await sb.auth.updateUser({password:np});
+  if(error){toast('Failed: '+error.message,'error');return}
+  toast('Password updated successfully','success');
+}
+
+async function sendBroadcast(){
+  const title=document.getElementById('notif-title')?.value;
+  const msg=document.getElementById('notif-msg')?.value;
+  const target=document.getElementById('notif-target')?.value;
+  const priority=document.getElementById('notif-priority')?.value;
+  if(!title||!msg){toast('Please fill title and message','error');return}
+  const {error}=await sb.from('notifications').insert({sender_id:S.currentUser?.id,title,message:msg,target_role:target,priority});
+  if(error){toast('Failed: '+error.message,'error');return}
+  toast('Notification sent!','success');
+}
+
+function inviteDJ(){
+  toast('To add a DJ: have them sign up, then update their role to "dj" in the Supabase profiles table.','info');
+}
+
+async function submitMovie(){
+  const title=document.getElementById('mv-title')?.value;
+  const category=document.getElementById('mv-cat')?.value;
+  const price=document.getElementById('mv-price')?.value;
+  const desc=document.getElementById('mv-desc')?.value;
+  const downloadUrl=document.getElementById('mv-dl')?.value;
+  const youtubeUrl=document.getElementById('mv-yt')?.value;
+  if(!title||!price){toast('Please fill Title and Price','error');return}
+  if(!S.posterUrl){toast('Please upload a poster image','error');return}
+  await saveMovie({title,category,price,desc,downloadUrl,youtubeUrl});
 }
 
 /* ══════════════════════════════════════
    INIT
 ══════════════════════════════════════ */
-render();
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Start with sidebar closed on mobile
+  if(window.innerWidth < 769){ S.collapsed = true; }
+  initAuth();
+});
 </script>
 </body>
 </html>
