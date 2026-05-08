@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineBox – Movie Streaming & Download</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ───────────── RESET & ROOT ───────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080810;--bg2:#0e0e18;--bg3:#141420;--bg4:#1c1c28;--bg5:#222232;
+  --accent:#e8a020;--accent2:#f5bc45;--accentDim:#e8a0201a;--accentBorder:#e8a02040;
+  --red:#e05555;--redDim:#e0555520;--green:#3ecb8a;--greenDim:#3ecb8a20;
+  --blue:#4a9eff;--blueDim:#4a9eff20;--purple:#9b6fff;
+  --text:#f0f0f8;--text2:#9090b0;--text3:#505068;--text4:#303045;
+  --border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;
+  --card:#0e0e18;--cardHov:#141420;
+  --radius:10px;--radiusLg:14px;--radiusSm:7px;
+  --sidebar:220px;--topbar:54px;
+  --font:'DM Sans',sans-serif;--fontHead:'Syne',sans-serif;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;overflow-x:hidden}
+input,select,textarea,button{font-family:inherit}
+a{text-decoration:none;color:inherit}
+
+/* ───────────── SCROLLBAR ───────────── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:4px}
+
+/* ───────────── LAYOUT ───────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{
+  width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;
+  z-index:200;transition:width .25s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+}
+.sidebar.collapsed{width:60px}
+.main-wrap{
+  margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;
+  height:100vh;overflow:hidden;transition:margin-left .25s cubic-bezier(.4,0,.2,1);
+}
+.sidebar.collapsed~.main-wrap{margin-left:60px}
+.content-area{flex:1;overflow-y:auto;overflow-x:hidden}
+
+/* ───────────── SIDEBAR ───────────── */
+.logo-area{
+  height:var(--topbar);padding:0 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.logo-mark{
+  width:30px;height:30px;border-radius:8px;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-weight:800;
+  font-size:14px;color:#000;font-family:var(--fontHead);flex-shrink:0;letter-spacing:-1px;
+}
+.logo-name{font-family:var(--fontHead);font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;opacity:1;transition:opacity .2s}
+.logo-name em{color:var(--accent);font-style:normal}
+.sidebar.collapsed .logo-name{opacity:0;width:0}
+
+.nav-section{padding:10px 0}
+.nav-label{
+  font-size:10px;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--text3);padding:6px 16px 4px;white-space:nowrap;
+  overflow:hidden;transition:opacity .2s;
+}
+.sidebar.collapsed .nav-label{opacity:0}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 15px;cursor:pointer;
+  color:var(--text2);transition:color .15s,background .15s;position:relative;
+  white-space:nowrap;overflow:hidden;user-select:none;
+}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--accent);background:var(--accentDim)}
+.nav-item.active::before{
+  content:'';position:absolute;left:0;top:6px;bottom:6px;
+  width:3px;background:var(--accent);border-radius:0 3px 3px 0;
+}
+.nav-icon{width:20px;text-align:center;font-size:14px;flex-shrink:0}
+.nav-label-text{font-size:13px;font-weight:500;overflow:hidden;flex:1}
+.sidebar.collapsed .nav-label-text{display:none}
+.nav-badge{
+  background:var(--accent);color:#000;font-size:10px;font-weight:700;
+  border-radius:10px;padding:1px 7px;flex-shrink:0;
+}
+.sidebar.collapsed .nav-badge{display:none}
+
+.sidebar-bottom{padding:10px;border-top:1px solid var(--border);flex-shrink:0}
+.user-chip{
+  display:flex;align-items:center;gap:8px;padding:7px 8px;
+  background:var(--bg3);border-radius:var(--radius);cursor:pointer;
+  transition:background .15s;overflow:hidden;
+}
+.user-chip:hover{background:var(--bg4)}
+.user-av{
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:11px;font-weight:700;color:#000;
+  font-family:var(--fontHead);flex-shrink:0;
+}
+.user-meta{overflow:hidden;flex:1}
+.user-name-t{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role-t{font-size:10px;color:var(--accent)}
+.sidebar.collapsed .user-meta{display:none}
+
+/* ───────────── TOPBAR ───────────── */
+.topbar{
+  height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;
+  position:sticky;top:0;z-index:100;
+}
+.icon-btn{
+  width:32px;height:32px;border:1px solid var(--border2);background:transparent;
+  color:var(--text2);border-radius:var(--radiusSm);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  transition:color .15s,border-color .15s,background .15s;flex-shrink:0;
+}
+.icon-btn:hover{color:var(--text);border-color:var(--border3);background:var(--bg3)}
+.search-wrap{flex:1;max-width:380px;position:relative}
+.search-wrap input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:7px 12px 7px 32px;color:var(--text);
+  font-size:12px;outline:none;transition:border-color .15s,background .15s;
+}
+.search-wrap input:focus{border-color:var(--accentBorder);background:var(--bg4)}
+.search-wrap input::placeholder{color:var(--text3)}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:12px;pointer-events:none}
+.topbar-right{display:flex;align-items:center;gap:6px;margin-left:auto}
+.notif-rel{position:relative}
+.notif-dot{position:absolute;top:5px;right:5px;width:6px;height:6px;background:var(--accent);border-radius:50%;border:1.5px solid var(--bg2)}
+.view-toggle{display:flex;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);overflow:hidden}
+.vt-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:11px;transition:color .15s,background .15s}
+.vt-btn.active{background:var(--accentDim);color:var(--accent)}
+.portal-select{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);
+  color:var(--text2);font-size:11px;padding:5px 8px;outline:none;cursor:pointer;
+}
+.portal-select option{background:var(--bg3)}
+
+/* ───────────── PAGE SHELL ───────────── */
+.page{padding:18px 20px;display:none;min-height:100%}
+.page.active{display:block}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
+.ph-left{}
+.page-title{font-family:var(--fontHead);font-size:20px;font-weight:700;line-height:1.2}
+.page-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.ph-right{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+
+/* ───────────── BUTTONS ───────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  border-radius:var(--radiusSm);font-size:12px;font-weight:500;cursor:pointer;
+  border:none;transition:all .15s;white-space:nowrap;line-height:1;
+}
+.btn i{font-size:11px}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border3);background:var(--bg3)}
+.btn-danger{background:var(--redDim);color:var(--red);border:1px solid #e0555530}
+.btn-danger:hover{background:#e0555530}
+.btn-success{background:var(--greenDim);color:var(--green);border:1px solid #3ecb8a30}
+.btn-success:hover{background:#3ecb8a30}
+.btn-sm{padding:5px 10px;font-size:11px;border-radius:6px}
+.btn-xs{padding:3px 8px;font-size:10px;border-radius:5px}
+.btn-block{width:100%;justify-content:center}
+.btn-lg{padding:10px 20px;font-size:13px}
+
+/* ───────────── STAT CARDS ───────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.stat-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
+  padding:14px 16px;position:relative;overflow:hidden;
+}
+.stat-glow{position:absolute;top:-10px;right:-10px;width:60px;height:60px;border-radius:50%;opacity:.08}
+.stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+.stat-val{font-family:var(--fontHead);font-size:22px;font-weight:700;line-height:1}
+.stat-foot{display:flex;align-items:center;gap:5px;font-size:11px;margin-top:7px}
+.stat-ico{position:absolute;top:14px;right:14px;font-size:18px;color:var(--text4)}
+.up{color:var(--green)}.dn{color:var(--red)}
+
+/* ───────────── CHARTS ───────────── */
+.chart-row{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:18px}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:16px}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chart-title{font-family:var(--fontHead);font-size:13px;font-weight:600}
+.chart-sub{font-size:11px;color:var(--text3)}
+.bar-track{display:flex;align-items:flex-end;gap:5px;height:90px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-fill{width:100%;border-radius:3px 3px 0 0;background:var(--accentDim);border:1px solid var(--accentBorder);transition:background .2s;cursor:pointer;min-height:3px}
+.bar-fill:hover{background:var(--accent)}
+.bar-lbl{font-size:9px;color:var(--text3);text-align:center}
+.donut-wrap{display:flex;flex-direction:column;justify-content:center;height:100%;gap:8px}
+.donut-item{display:flex;align-items:center;gap:8px}
+.donut-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.donut-label{font-size:11px;color:var(--text2);flex:1}
+.donut-pct{font-size:11px;font-weight:500}
+.donut-bar-bg{flex:1;height:4px;background:var(--bg4);border-radius:4px;overflow:hidden}
+.donut-bar-fill{height:100%;border-radius:4px}
+
+/* ───────────── MOVIE GRID ───────────── */
+.filter-bar{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.chip{
+  padding:4px 11px;border-radius:20px;font-size:11px;font-weight:500;
+  border:1px solid var(--border2);color:var(--text2);cursor:pointer;
+  transition:all .15s;background:transparent;
+}
+.chip:hover{color:var(--text);border-color:var(--border3)}
+.chip.on{background:var(--accentDim);color:var(--accent);border-color:var(--accentBorder)}
+.sort-sel{
+  margin-left:auto;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--radiusSm);color:var(--text2);font-size:11px;
+  padding:5px 10px;outline:none;cursor:pointer;
+}
+.movie-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.movie-grid.cols4{grid-template-columns:repeat(4,1fr)}
+.movie-grid.cols3{grid-template-columns:repeat(3,1fr)}
+.movie-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;
+  position:relative;
+}
+.movie-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px #00000070;border-color:var(--border2)}
+.movie-card:hover .mc-overlay{opacity:1}
+.mc-poster{
+  width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;
+  font-size:32px;color:var(--text4);
+}
+.mc-overlay{
+  position:absolute;inset:0;background:linear-gradient(to top,#000000e0 35%,transparent 65%);
+  opacity:0;transition:opacity .2s;display:flex;flex-direction:column;
+  justify-content:flex-end;padding:8px;
+}
+.mc-btns{display:flex;gap:5px;margin-bottom:5px}
+.mc-btn{
+  flex:1;padding:5px 0;border-radius:5px;border:none;font-size:10px;
+  font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;
+}
+.mc-btn-t{background:#ffffff25;color:#fff;backdrop-filter:blur(4px)}
+.mc-btn-t:hover{background:#ffffff35}
+.mc-btn-b{background:var(--accent);color:#000}
+.mc-btn-b:hover{background:var(--accent2)}
+.mc-badge{
+  position:absolute;top:6px;left:6px;font-size:9px;font-weight:700;
+  padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px;
+}
+.mc-badge.new{background:var(--green);color:#000}
+.mc-badge.hot{background:var(--red);color:#fff}
+.mc-badge.free{background:var(--purple);color:#fff}
+.mc-info{padding:8px 9px 10px}
+.mc-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;font-family:var(--fontHead)}
+.mc-foot{display:flex;align-items:center;justify-content:space-between}
+.mc-price{font-size:12px;color:var(--accent);font-weight:700}
+.mc-cat{font-size:9px;color:var(--text3);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+.mc-dj{font-size:9px;color:var(--text3);margin-top:2px}
+
+/* list view */
+.movie-list{display:flex;flex-direction:column;gap:6px}
+.movie-list-item{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  display:flex;align-items:center;gap:12px;padding:10px 12px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.movie-list-item:hover{background:var(--cardHov);border-color:var(--border2)}
+.ml-thumb{width:40px;height:60px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text4)}
+.ml-info{flex:1;min-width:0}
+.ml-title{font-size:13px;font-weight:600;font-family:var(--fontHead);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ml-meta{font-size:11px;color:var(--text2)}
+.ml-price{font-size:13px;color:var(--accent);font-weight:700;flex-shrink:0}
+.ml-actions{display:flex;gap:5px;flex-shrink:0}
+
+/* ───────────── TABLES ───────────── */
+.tbl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);overflow:hidden;margin-bottom:16px}
+.tbl-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;
+}
+.tbl-title{font-family:var(--fontHead);font-size:13px;font-weight:600}
+.tbl-actions{display:flex;gap:6px;align-items:center}
+.tbl-search{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);
+  padding:5px 10px;color:var(--text);font-size:11px;outline:none;width:170px;
+}
+.tbl-search::placeholder{color:var(--text3)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--bg3)}
+th{
+  text-align:left;padding:9px 14px;font-size:10px;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+td{padding:9px 14px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
+tbody tr:hover td{background:var(--bg3);color:var(--text)}
+.td-main{color:var(--text)!important;font-weight:500}
+.av{
+  width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:700;margin-right:7px;
+  vertical-align:middle;flex-shrink:0;
+}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.pill-green{background:var(--greenDim);color:var(--green)}
+.pill-amber{background:var(--accentDim);color:var(--accent)}
+.pill-red{background:var(--redDim);color:var(--red)}
+.pill-gray{background:var(--bg4);color:var(--text3)}
+.pill-blue{background:var(--blueDim);color:var(--blue)}
+.pill i{font-size:6px}
+
+/* ───────────── FORMS ───────────── */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:18px;margin-bottom:14px}
+.form-card-title{font-family:var(--fontHead);font-size:14px;font-weight:600;margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgrid.cols1{grid-template-columns:1fr}
+.fgrid.cols3{grid-template-columns:1fr 1fr 1fr}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:11px;color:var(--text2);font-weight:500}
+.fg input,.fg select,.fg textarea{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radiusSm);
+  padding:8px 10px;color:var(--text);font-size:12px;outline:none;
+  transition:border-color .15s,background .15s;
+}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accentBorder);background:var(--bg4)}
+.fg input::placeholder,.fg textarea::placeholder{color:var(--text3)}
+.fg textarea{resize:vertical;min-height:80px;line-height:1.5}
+.fg select option{background:var(--bg3)}
+.upload-zone{
+  border:1.5px dashed var(--border3);border-radius:var(--radius);
+  padding:22px 16px;text-align:center;cursor:pointer;transition:all .15s;
+  background:var(--bg3);
+}
+.upload-zone:hover{border-color:var(--accent);background:var(--accentDim)}
+.upload-zone i{font-size:24px;color:var(--text3);margin-bottom:7px;display:block}
+.upload-zone p{font-size:12px;color:var(--text2);margin-bottom:3px}
+.upload-zone span{font-size:10px;color:var(--text3)}
+.form-footer{display:flex;gap:8px;margin-top:4px}
+
+/* ───────────── HERO / BANNER ───────────── */
+.hero-band{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
+  padding:20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;
+  position:relative;overflow:hidden;
+}
+.hero-band::after{
+  content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;
+  border-radius:50%;background:var(--accentDim);pointer-events:none;
+}
+.hero-av{
+  width:48px;height:48px;border-radius:12px;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  font-weight:800;color:#000;font-family:var(--fontHead);flex-shrink:0;z-index:1;
+}
+.hero-text h2{font-family:var(--fontHead);font-size:18px;font-weight:700;margin-bottom:3px}
+.hero-text p{font-size:12px;color:var(--text2)}
+.hero-actions{margin-left:auto;z-index:1;display:flex;gap:8px;flex-shrink:0}
+
+/* ───────────── EARN CARDS ───────────── */
+.earn-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.earn-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.earn-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.earn-val{font-family:var(--fontHead);font-size:18px;font-weight:700;color:var(--accent)}
+.earn-note{font-size:10px;color:var(--text3);margin-top:4px}
+
+/* ───────────── NOTIF LIST ───────────── */
+.notif-list{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.notif-item{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:11px 13px;display:flex;align-items:flex-start;gap:10px;
+  transition:background .15s;
+}
+.notif-item.unread{border-left:3px solid var(--accent)}
+.notif-item:hover{background:var(--bg3)}
+.n-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.n-body{flex:1}
+.n-msg{font-size:12px;line-height:1.5;color:var(--text)}
+.n-time{font-size:10px;color:var(--text3);margin-top:2px}
+.n-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:5px}
+
+/* ───────────── SECTION TITLE ───────────── */
+.sec-title{
+  font-family:var(--fontHead);font-size:13px;font-weight:600;
+  margin-bottom:11px;display:flex;align-items:center;gap:8px;
+}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.sec-actions{display:flex;gap:6px;align-items:center;margin-left:auto;margin-right:8px}
+
+/* ───────────── FEATURED MOVIE (User Home) ───────────── */
+.featured-wrap{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
+  overflow:hidden;margin-bottom:18px;position:relative;
+}
+.featured-img{
+  width:100%;height:200px;display:flex;align-items:center;justify-content:center;
+  font-size:60px;color:var(--text4);
+}
+.featured-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to right,#000000dd 40%,#00000088 70%,transparent);
+  display:flex;align-items:flex-end;padding:20px;
+}
+.feat-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:5px}
+.feat-title{font-family:var(--fontHead);font-size:20px;font-weight:800;margin-bottom:5px;line-height:1.2}
+.feat-desc{font-size:12px;color:var(--text2);margin-bottom:11px;line-height:1.55;max-width:280px}
+.feat-meta{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.feat-pill{
+  font-size:10px;color:var(--text2);background:var(--bg4);
+  padding:3px 8px;border-radius:5px;border:1px solid var(--border);
+}
+
+/* ───────────── AUTH ───────────── */
+.auth-wrap{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);padding:20px;
+}
+.auth-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);
+  padding:30px;width:100%;max-width:370px;
+}
+.auth-logo{display:flex;align-items:center;gap:9px;margin-bottom:22px}
+.auth-logo-name{font-family:var(--fontHead);font-size:17px;font-weight:700}
+.auth-logo-name em{color:var(--accent);font-style:normal}
+.auth-h{font-family:var(--fontHead);font-size:19px;font-weight:700;margin-bottom:4px}
+.auth-s{font-size:12px;color:var(--text2);margin-bottom:20px}
+.auth-form{display:flex;flex-direction:column;gap:13px}
+.or-div{text-align:center;font-size:11px;color:var(--text3);position:relative;margin:2px 0}
+.or-div::before,.or-div::after{content:'';position:absolute;top:50%;width:44%;height:1px;background:var(--border)}
+.or-div::before{left:0}.or-div::after{right:0}
+.auth-link{color:var(--accent);cursor:pointer;font-weight:500}
+
+/* ───────────── PAYMENT ───────────── */
+.pay-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;flex-direction:column;gap:12px}
+.pay-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radiusLg);padding:22px;width:100%;max-width:360px}
+.pay-h{font-family:var(--fontHead);font-size:16px;font-weight:700;margin-bottom:3px}
+.pay-s{font-size:12px;color:var(--text2);margin-bottom:16px}
+.pay-amount-box{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:14px;text-align:center;margin-bottom:14px}
+.pay-amount-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.pay-amount-val{font-family:var(--fontHead);font-size:28px;font-weight:800;color:var(--accent)}
+.pay-movie{font-size:11px;color:var(--text2);margin-top:3px}
+.pay-methods{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.pay-method{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s;
+}
+.pay-method:hover{border-color:var(--border3);background:var(--bg3)}
+.pay-method.sel{border-color:var(--accentBorder);background:var(--accentDim)}
+.pay-m-icon{width:30px;height:30px;border-radius:7px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:14px;border:1px solid var(--border2)}
+.pay-m-name{font-size:12px;font-weight:500;flex:1}
+.pay-note{font-size:10px;color:var(--text3);text-align:center;margin-top:10px}
+
+/* ───────────── DOWNLOAD PAGE ───────────── */
+.dl-success{
+  background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:var(--radius);
+  padding:14px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;
+}
+.dl-success i{color:var(--green);font-size:18px;flex-shrink:0}
+.dl-success p{font-size:12px;line-height:1.5}
+
+/* ───────────── SETTINGS ───────────── */
+.settings-tabs{display:flex;gap:1px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;width:fit-content}
+.st-tab{padding:7px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .15s}
+.st-tab.active{background:var(--accentDim);color:var(--accent)}
+
+/* ───────────── RESPONSIVE ───────────── */
+@media(max-width:1100px){.movie-grid{grid-template-columns:repeat(4,1fr)}.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){
+  .movie-grid{grid-template-columns:repeat(3,1fr)}
+  .chart-row{grid-template-columns:1fr}
+  .fgrid{grid-template-columns:1fr}
+  .fgrid.cols3{grid-template-columns:1fr 1fr}
+  .earn-row{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:680px){
+  :root{--sidebar:60px}
+  .logo-name,.nav-label-text,.nav-badge,.nav-label,.user-meta{display:none!important}
+  .movie-grid{grid-template-columns:repeat(2,1fr)}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .earn-row{grid-template-columns:1fr 1fr}
+  .page{padding:14px}
+  .topbar{padding:0 10px;gap:7px}
+  .search-wrap{max-width:none}
+  .chart-row{grid-template-columns:1fr}
+}
+@media(max-width:420px){
+  .movie-grid{grid-template-columns:repeat(2,1fr)}
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+/* ══════════════════════════════════════
+   DATA
+══════════════════════════════════════ */
+const MOVIES = [
+  {id:1,title:'Midnight Protocol',cat:'Action',price:4.99,badge:'new',bg:'#12102a',dj:'DJ Kinetic',desc:'A high-stakes action thriller where one detective unravels a city-wide conspiracy in near-future Lagos.'},
+  {id:2,title:'The Last Frequency',cat:'Sci-Fi',price:3.99,badge:'hot',bg:'#0f1e28',dj:'DJ Apex',desc:'A radio engineer discovers a signal from the future, forcing her to choose between saving herself or the world.'},
+  {id:3,title:'Echoes of Sand',cat:'Drama',price:2.99,badge:'',bg:'#22121a',dj:'DJ Nova',desc:'An emotional journey through the Sahara as two strangers discover their lives are inexplicably connected.'},
+  {id:4,title:'Neon Requiem',cat:'Thriller',price:5.99,badge:'new',bg:'#10102a',dj:'DJ Storm',desc:'A jazz musician in a dystopian city becomes the prime suspect in a series of unsolved disappearances.'},
+  {id:5,title:'Solar Drift',cat:'Sci-Fi',price:3.49,badge:'',bg:'#0f2218',dj:'DJ Kinetic',desc:'Earth\'s last colony ship drifts off course, and its AI crew must make an impossible moral choice.'},
+  {id:6,title:'Crimson Estate',cat:'Horror',price:4.49,badge:'hot',bg:'#281010',dj:'DJ Apex',desc:'A family inherits a colonial estate that holds dark secrets buried for three generations.'},
+  {id:7,title:'The Quiet Storm',cat:'Drama',price:2.49,badge:'',bg:'#101028',dj:'DJ Nova',desc:'A celebrated pianist loses her hearing and must rediscover music through an unexpected friendship.'},
+  {id:8,title:'Velocity',cat:'Action',price:6.99,badge:'hot',bg:'#201808',dj:'DJ Storm',desc:'An underground street racer enters a deadly cross-continental race to clear his father\'s name.'},
+  {id:9,title:'Parallel Lives',cat:'Romance',price:3.99,badge:'',bg:'#0f2020',dj:'DJ Kinetic',desc:'Two people living parallel lives in different cities realise they\'ve been leaving messages for each other across time.'},
+  {id:10,title:'Dark Signal',cat:'Thriller',price:4.99,badge:'new',bg:'#1a0820',dj:'DJ Apex',desc:'A cybersecurity expert discovers that a rogue AI has infiltrated the global financial system.'},
+];
+
+const USERS = [
+  {id:1,name:'Amara Osei',email:'amara@mail.com',role:'user',status:'active',joined:'Apr 2025',movies:3},
+  {id:2,name:'Kwame Nkrumah',email:'kwame@mail.com',role:'user',status:'active',joined:'Mar 2025',movies:5},
+  {id:3,name:'Luc Bernard',email:'luc@mail.com',role:'user',status:'blocked',joined:'Jan 2025',movies:1},
+  {id:4,name:'Yemi Adeyemi',email:'yemi@mail.com',role:'user',status:'active',joined:'Feb 2025',movies:2},
+];
+
+const DJS = [
+  {id:1,name:'DJ Kinetic',email:'kinetic@mail.com',status:'active',movies:12,earnings:842,joined:'Oct 2024'},
+  {id:2,name:'DJ Apex',email:'apex@mail.com',status:'active',movies:9,earnings:620,joined:'Nov 2024'},
+  {id:3,name:'DJ Nova',email:'nova@mail.com',status:'active',movies:7,earnings:410,joined:'Dec 2024'},
+  {id:4,name:'DJ Storm',email:'storm@mail.com',status:'blocked',movies:4,earnings:180,joined:'Jan 2025'},
+];
+
+const PAYMENTS = [
+  {id:'#P001',user:'Amara Osei',movie:'Midnight Protocol',amount:4.99,dj:'DJ Kinetic',status:'paid',date:'May 1, 2025'},
+  {id:'#P002',user:'Kwame Nkrumah',movie:'Velocity',amount:6.99,dj:'DJ Storm',status:'paid',date:'Apr 30, 2025'},
+  {id:'#P003',user:'Yemi Adeyemi',movie:'Neon Requiem',amount:5.99,dj:'DJ Storm',status:'pending',date:'Apr 29, 2025'},
+  {id:'#P004',user:'Luc Bernard',movie:'Echoes of Sand',amount:2.99,dj:'DJ Nova',status:'failed',date:'Apr 28, 2025'},
+  {id:'#P005',user:'Amara Osei',movie:'Dark Signal',amount:4.99,dj:'DJ Apex',status:'paid',date:'Apr 27, 2025'},
+  {id:'#P006',user:'Kwame Nkrumah',movie:'Solar Drift',amount:3.49,dj:'DJ Kinetic',status:'paid',date:'Apr 26, 2025'},
+];
+
+const NOTIFS = [
+  {icon:'fa-film',bg:'#e8a02020',ic:'#e8a020',msg:'New movie "Solar Drift" uploaded by DJ Kinetic',time:'2h ago',unread:true},
+  {icon:'fa-credit-card',bg:'#3ecb8a20',ic:'#3ecb8a',msg:'Payment received from Amara Osei – $4.99',time:'4h ago',unread:true},
+  {icon:'fa-user-plus',bg:'#4a9eff20',ic:'#4a9eff',msg:'New user registered: Kwame Nkrumah',time:'6h ago',unread:false},
+  {icon:'fa-triangle-exclamation',bg:'#e0555520',ic:'#e05555',msg:'Payment failed for Luc Bernard on "Echoes of Sand"',time:'1d ago',unread:false},
+  {icon:'fa-shield-halved',bg:'#9b6fff20',ic:'#9b6fff',msg:'System security scan completed successfully',time:'2d ago',unread:false},
+];
+
+const CATS = ['All','Action','Sci-Fi','Drama','Thriller','Horror','Romance'];
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let S = {
+  portal:'login',        // login | register | admin | dj | user | payment | forgot
+  page:'dashboard',      // current page id
+  collapsed:false,
+  cat:'All',
+  gridMode:'grid',       // grid | list
+  payMethod:0,
+  buyMovieId:1,
+  settingsTab:'general',
+  searchQ:'',
+};
+
+/* ══════════════════════════════════════
+   HELPERS
+══════════════════════════════════════ */
+function ini(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+const COLORS=['#e8a020','#4a9eff','#3ecb8a','#9b6fff','#e05555','#f5bc45'];
+function avColor(seed){return COLORS[seed%COLORS.length]}
+function fmt(n){return '$'+n.toFixed(2)}
+
+function pill(status){
+  const map={active:'green',paid:'green',pending:'amber',blocked:'red',failed:'red',inactive:'gray',processing:'blue'};
+  const cls=map[status]||'gray';
+  return `<span class="pill pill-${cls}"><i class="fas fa-circle"></i>${status}</span>`;
+}
+
+/* ══════════════════════════════════════
+   RENDER ENTRY
+══════════════════════════════════════ */
+function render(){
+  const app=document.getElementById('app');
+  if(S.portal==='login'){app.innerHTML=buildLogin();return}
+  if(S.portal==='register'){app.innerHTML=buildRegister();return}
+  if(S.portal==='forgot'){app.innerHTML=buildForgot();return}
+  if(S.portal==='payment'){app.innerHTML=buildPaymentPage();return}
+  app.innerHTML=buildShell();
+}
+
+/* ══════════════════════════════════════
+   SHELL (sidebar + topbar + content)
+══════════════════════════════════════ */
+function buildShell(){
+  const menus = {
+    admin:[
+      {id:'dashboard',icon:'fa-chart-pie',label:'Dashboard'},
+      {id:'movies',icon:'fa-film',label:'Movies'},
+      {id:'users',icon:'fa-users',label:'Users'},
+      {id:'djs',icon:'fa-headphones',label:'DJs'},
+      {id:'payments',icon:'fa-credit-card',label:'Payments'},
+      {id:'notifications',icon:'fa-bell',label:'Notifications',badge:'2'},
+      {id:'settings',icon:'fa-sliders',label:'Settings'},
+    ],
+    dj:[
+      {id:'dj-dashboard',icon:'fa-chart-bar',label:'Dashboard'},
+      {id:'dj-upload',icon:'fa-upload',label:'Upload Movie'},
+      {id:'dj-movies',icon:'fa-film',label:'My Movies'},
+      {id:'dj-payments',icon:'fa-wallet',label:'Earnings'},
+      {id:'dj-notifs',icon:'fa-bell',label:'Notifications',badge:'1'},
+    ],
+    user:[
+      {id:'home',icon:'fa-house',label:'Home'},
+      {id:'my-movies',icon:'fa-heart',label:'My Movies'},
+      {id:'downloads',icon:'fa-download',label:'Downloads'},
+      {id:'user-notifs',icon:'fa-bell',label:'Notifications'},
+    ],
+  };
+  const m=menus[S.portal]||menus.admin;
+  const cc=S.collapsed?'collapsed':'';
+  const portals=[
+    {id:'admin',icon:'fa-shield-halved',label:'Admin'},
+    {id:'dj',icon:'fa-headphones',label:'DJ'},
+    {id:'user',icon:'fa-user',label:'User'},
+  ];
+  const unames={admin:'Admin User',dj:'DJ Kinetic',user:'Amara Osei'};
+  const uroles={admin:'Administrator',dj:'DJ Partner',user:'Member'};
+  const uname=unames[S.portal];
+  const urole=uroles[S.portal];
+  const ml=m.find(x=>x.id===S.page);
+
+  return `
+<div class="app">
+  <aside class="sidebar ${cc}" id="sidebar">
+    <div class="logo-area">
+      <div class="logo-mark">CB</div>
+      <div class="logo-name">Cine<em>Box</em></div>
+    </div>
+    <div style="flex:1;overflow-y:auto;overflow-x:hidden">
+      <div class="nav-section">
+        <div class="nav-label">Main</div>
+        ${m.map(item=>`
+          <div class="nav-item${S.page===item.id?' active':''}" onclick="go('${item.id}')">
+            <div class="nav-icon"><i class="fas ${item.icon}"></i></div>
+            <span class="nav-label-text">${item.label}</span>
+            ${item.badge?`<span class="nav-badge">${item.badge}</span>`:''}
+          </div>
+        `).join('')}
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Switch Portal</div>
+        ${portals.map(p=>`
+          <div class="nav-item${S.portal===p.id?' active':''}" onclick="switchPortal('${p.id}')">
+            <div class="nav-icon"><i class="fas ${p.icon}"></i></div>
+            <span class="nav-label-text">${p.label} Panel</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="user-av" style="background:${avColor(uname.length)}">${ini(uname)}</div>
+        <div class="user-meta">
+          <div class="user-name-t">${uname}</div>
+          <div class="user-role-t">${urole}</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-wrap">
+    <div class="topbar">
+      <button class="icon-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <div class="search-wrap">
+        <span class="search-icon"><i class="fas fa-search"></i></span>
+        <input type="text" placeholder="Search movies, users..." value="${S.searchQ}" oninput="S.searchQ=this.value;render()">
+      </div>
+      <div class="topbar-right">
+        <div class="view-toggle">
+          <div class="vt-btn${S.gridMode==='grid'?' active':''}" onclick="S.gridMode='grid';render()"><i class="fas fa-grip"></i></div>
+          <div class="vt-btn${S.gridMode==='list'?' active':''}" onclick="S.gridMode='list';render()"><i class="fas fa-list"></i></div>
+        </div>
+        <select class="portal-select" onchange="switchPortal(this.value)">
+          <option value="admin"${S.portal==='admin'?' selected':''}>Admin</option>
+          <option value="dj"${S.portal==='dj'?' selected':''}>DJ Panel</option>
+          <option value="user"${S.portal==='user'?' selected':''}>User Panel</option>
+        </select>
+        <div class="notif-rel"><button class="icon-btn"><i class="fas fa-bell"></i></button><div class="notif-dot"></div></div>
+        <button class="icon-btn" onclick="switchPortal('login')"><i class="fas fa-right-from-bracket"></i></button>
+      </div>
+    </div>
+    <div class="content-area">${buildPage()}</div>
+  </div>
+</div>`;
+}
+
+/* ══════════════════════════════════════
+   PAGE ROUTER
+══════════════════════════════════════ */
+function buildPage(){
+  const map = {
+    dashboard:adminDashboard, movies:moviesPage, users:usersPage,
+    djs:djsPage, payments:paymentsPage, notifications:notificationsPage, settings:settingsPage,
+    'dj-dashboard':djDashboard, 'dj-upload':djUpload, 'dj-movies':djMovies,
+    'dj-payments':djPayments, 'dj-notifs':djNotifs,
+    home:userHome, 'my-movies':myMoviesPage, downloads:downloadsPage, 'user-notifs':userNotifs,
+  };
+  return (map[S.page]||adminDashboard)();
+}
+
+/* ══════════════════════════════════════
+   ADMIN: DASHBOARD
+══════════════════════════════════════ */
+function adminDashboard(){
+  const bars=[42,58,50,73,62,88,74];
+  const months=['Nov','Dec','Jan','Feb','Mar','Apr','May'];
+  const cats=[['Action',78],['Sci-Fi',62],['Thriller',70],['Drama',52],['Horror',44]];
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">Dashboard</div><div class="page-sub">Welcome back, Admin · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div></div>
+      <div class="ph-right">
+        <button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button>
+        <button class="btn btn-primary btn-sm" onclick="go('movies')"><i class="fas fa-plus"></i> Add Movie</button>
+      </div>
+    </div>
+    <div class="stats-grid">
+      ${[
+        {l:'Total Revenue',v:'$18,492',ch:'+12.4%',up:true,ico:'fa-dollar-sign',c:'#e8a020'},
+        {l:'Active Movies',v:'234',ch:'+8 this week',up:true,ico:'fa-film',c:'#4a9eff'},
+        {l:'Registered Users',v:'1,842',ch:'+4.2%',up:true,ico:'fa-users',c:'#3ecb8a'},
+        {l:'Active DJs',v:'24',ch:'-1 this month',up:false,ico:'fa-headphones',c:'#9b6fff'},
+      ].map(s=>`
+        <div class="stat-card">
+          <div class="stat-glow" style="background:${s.c}"></div>
+          <div class="stat-lbl">${s.l}</div>
+          <div class="stat-val">${s.v}</div>
+          <div class="stat-foot ${s.up?'up':'dn'}"><i class="fas fa-arrow-${s.up?'up':'down'}" style="font-size:9px"></i>${s.ch}</div>
+          <i class="fas ${s.ico} stat-ico" style="color:${s.c}20"></i>
+        </div>
+      `).join('')}
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-head">
+          <div class="chart-title">Monthly Revenue</div>
+          <div class="chart-sub">Last 7 months · $18.4k total</div>
+        </div>
+        <div class="bar-track">
+          ${bars.map((h,i)=>`
+            <div class="bar-col">
+              <div class="bar-fill" style="height:${h}%" title="${months[i]}"></div>
+              <div class="bar-lbl">${months[i]}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-head"><div class="chart-title">Sales by Genre</div></div>
+        <div class="donut-wrap">
+          ${cats.map(([cat,pct],i)=>`
+            <div class="donut-item">
+              <div class="donut-dot" style="background:${COLORS[i]}"></div>
+              <div class="donut-label">${cat}</div>
+              <div class="donut-bar-bg"><div class="donut-bar-fill" style="width:${pct}%;background:${COLORS[i]}"></div></div>
+              <div class="donut-pct" style="color:${COLORS[i]}">${pct}%</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="sec-title">Recent Transactions</div>
+    ${payTable(PAYMENTS.slice(0,5))}
+    <div style="margin-top:16px">
+      <div class="sec-title">Top Movies This Week</div>
+      <div class="movie-grid">${MOVIES.slice(0,5).map(m=>movieCard(m)).join('')}</div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ADMIN: MOVIES
+══════════════════════════════════════ */
+function moviesPage(){
+  let filtered=S.searchQ
+    ?MOVIES.filter(m=>m.title.toLowerCase().includes(S.searchQ.toLowerCase()))
+    :MOVIES;
+  if(S.cat!=='All') filtered=filtered.filter(m=>m.cat===S.cat);
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">Movies</div><div class="page-sub">${filtered.length} of ${MOVIES.length} movies</div></div>
+      <div class="ph-right">
+        <button class="btn btn-ghost btn-sm"><i class="fas fa-sliders"></i> Filters</button>
+        <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add Movie</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      ${CATS.map(c=>`<div class="chip${S.cat===c?' on':''}" onclick="S.cat='${c}';render()">${c}</div>`).join('')}
+      <select class="sort-sel">
+        <option>Latest</option><option>Most Popular</option>
+        <option>Price: Low to High</option><option>Price: High to Low</option>
+      </select>
+    </div>
+    ${S.gridMode==='grid'
+      ?`<div class="movie-grid">${filtered.map(m=>movieCard(m,true)).join('')}</div>`
+      :`<div class="movie-list">${filtered.map(m=>movieListItem(m)).join('')}</div>`
+    }
+  </div>`;
+}
+
+function movieCard(m,admin=false){
+  return `
+  <div class="movie-card" onclick="openMovieDetail(${m.id})">
+    ${m.badge?`<div class="mc-badge ${m.badge}">${m.badge}</div>`:''}
+    <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg},#050508)">
+      <i class="fas fa-film"></i>
+    </div>
+    <div class="mc-overlay">
+      <div class="mc-btns">
+        <button class="mc-btn mc-btn-t" onclick="event.stopPropagation()"><i class="fas fa-play"></i> Trailer</button>
+        <button class="mc-btn mc-btn-b" onclick="event.stopPropagation();buyMovie(${m.id})">Buy</button>
+      </div>
+    </div>
+    <div class="mc-info">
+      <div class="mc-title">${m.title}</div>
+      <div class="mc-foot">
+        <div class="mc-price">${fmt(m.price)}</div>
+        <div class="mc-cat">${m.cat}</div>
+      </div>
+      <div class="mc-dj">by ${m.dj}</div>
+    </div>
+    ${admin?`<div style="padding:0 8px 8px;display:flex;gap:4px">
+      <button class="btn btn-ghost btn-xs" style="flex:1" onclick="event.stopPropagation()"><i class="fas fa-edit"></i> Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="event.stopPropagation()"><i class="fas fa-trash"></i></button>
+    </div>`:''}
+  </div>`;
+}
+
+function movieListItem(m){
+  return `
+  <div class="movie-list-item">
+    <div class="ml-thumb" style="background:linear-gradient(145deg,${m.bg},#050508)"><i class="fas fa-film"></i></div>
+    <div class="ml-info">
+      <div class="ml-title">${m.title}</div>
+      <div class="ml-meta">${m.cat} · ${m.dj} ${m.badge?`· <span style="color:var(--${m.badge==='new'?'green':'red'})">${m.badge.toUpperCase()}</span>`:''}</div>
+    </div>
+    <div class="ml-price">${fmt(m.price)}</div>
+    <div class="ml-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-play"></i></button>
+      <button class="btn btn-primary btn-sm" onclick="buyMovie(${m.id})">Buy</button>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ADMIN: USERS
+══════════════════════════════════════ */
+function usersPage(){
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">Users</div><div class="page-sub">${USERS.length} registered users</div></div>
+      <div class="ph-right">
+        <button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export CSV</button>
+        <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add User</button>
+      </div>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head">
+        <span class="tbl-title">All Users</span>
+        <div class="tbl-actions">
+          <input class="tbl-search" type="text" placeholder="Search users...">
+          <button class="btn btn-ghost btn-sm"><i class="fas fa-filter"></i></button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>User</th><th>Email</th><th>Movies Bought</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${USERS.map(u=>`
+          <tr>
+            <td class="td-main"><div style="display:inline-flex;align-items:center;gap:8px">
+              <div class="av" style="background:${avColor(u.id)}20;color:${avColor(u.id)}">${ini(u.name)}</div>${u.name}</div></td>
+            <td>${u.email}</td>
+            <td><span style="color:var(--text)">${u.movies}</span></td>
+            <td>${u.joined}</td>
+            <td>${pill(u.status)}</td>
+            <td><div style="display:flex;gap:5px">
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-eye"></i></button>
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-danger btn-xs">${u.status==='active'?'Block':'Unblock'}</button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ADMIN: DJS
+══════════════════════════════════════ */
+function djsPage(){
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">DJs</div><div class="page-sub">${DJS.length} DJ partners</div></div>
+      <div class="ph-right"><button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add DJ</button></div>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head">
+        <span class="tbl-title">DJ Partners</span>
+        <div class="tbl-actions"><input class="tbl-search" type="text" placeholder="Search DJs..."></div>
+      </div>
+      <table>
+        <thead><tr><th>DJ Name</th><th>Email</th><th>Movies</th><th>Total Earnings</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${DJS.map(d=>`
+          <tr>
+            <td class="td-main"><div style="display:inline-flex;align-items:center;gap:8px">
+              <div class="av" style="background:${avColor(d.id)}20;color:${avColor(d.id)}">${ini(d.name)}</div>${d.name}</div></td>
+            <td>${d.email}</td>
+            <td>${d.movies}</td>
+            <td style="color:var(--accent);font-weight:600">${fmt(d.earnings)}</td>
+            <td>${d.joined}</td>
+            <td>${pill(d.status)}</td>
+            <td><div style="display:flex;gap:5px">
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-danger btn-xs">${d.status==='active'?'Block':'Unblock'}</button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ADMIN: PAYMENTS
+══════════════════════════════════════ */
+function payTable(data){
+  return `<div class="tbl-card">
+    <table>
+      <thead><tr><th>ID</th><th>User</th><th>Movie</th><th>DJ</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>${data.map(p=>`
+        <tr>
+          <td style="color:var(--text3);font-size:11px">${p.id}</td>
+          <td class="td-main">${p.user}</td>
+          <td>${p.movie}</td>
+          <td style="color:var(--text2)">${p.dj}</td>
+          <td style="color:var(--accent);font-weight:600">${fmt(p.amount)}</td>
+          <td>${pill(p.status)}</td>
+          <td style="color:var(--text3)">${p.date}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function paymentsPage(){
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">Payments</div><div class="page-sub">All transaction records</div></div>
+      <div class="ph-right">
+        <select class="sort-sel"><option>All Status</option><option>Paid</option><option>Pending</option><option>Failed</option></select>
+        <button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button>
+      </div>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+      ${[
+        {l:'Total Revenue',v:'$18,492',c:'var(--accent)'},
+        {l:'Pending',v:'$249',c:'var(--accent)'},
+        {l:'Failed',v:'$48',c:'var(--red)'},
+      ].map(s=>`<div class="stat-card"><div class="stat-lbl">${s.l}</div><div class="stat-val" style="color:${s.c}">${s.v}</div></div>`).join('')}
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head">
+        <span class="tbl-title">All Transactions</span>
+        <div class="tbl-actions"><input class="tbl-search" type="text" placeholder="Search..."></div>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>User</th><th>Movie</th><th>DJ</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>${PAYMENTS.map(p=>`
+          <tr>
+            <td style="color:var(--text3);font-size:11px">${p.id}</td>
+            <td class="td-main">${p.user}</td>
+            <td>${p.movie}</td>
+            <td style="color:var(--text2)">${p.dj}</td>
+            <td style="color:var(--accent);font-weight:600">${fmt(p.amount)}</td>
+            <td>${pill(p.status)}</td>
+            <td style="color:var(--text3)">${p.date}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ADMIN: NOTIFICATIONS
+══════════════════════════════════════ */
+function notificationsPage(){
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">Notifications</div></div>
+      <div class="ph-right"><button class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Send Broadcast</button></div>
+    </div>
+    <div class="form-card">
+      <div class="form-card-title"><i class="fas fa-paper-plane" style="color:var(--accent);margin-right:6px"></i>Broadcast Message</div>
+      <div class="fgrid">
+        <div class="fg"><label>Target Audience</label>
+          <select><option>All Users & DJs</option><option>DJs Only</option><option>Users Only</option><option>Specific User</option></select></div>
+        <div class="fg"><label>Priority Level</label>
+          <select><option>Normal</option><option>High</option><option>Urgent</option></select></div>
+        <div class="fg full"><label>Message</label>
+          <textarea placeholder="Type your notification message here..."></textarea></div>
+      </div>
+      <div class="form-footer">
+        <button class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send Now</button>
+        <button class="btn btn-ghost">Schedule</button>
+      </div>
+    </div>
+    <div class="sec-title">Recent Notifications</div>
+    <div class="notif-list">${NOTIFS.map(n=>`
+      <div class="notif-item${n.unread?' unread':''}">
+        <div class="n-icon" style="background:${n.bg}"><i class="fas ${n.icon}" style="color:${n.ic}"></i></div>
+        <div class="n-body"><div class="n-msg">${n.msg}</div><div class="n-time">${n.time}</div></div>
+        ${n.unread?'<div class="n-dot"></div>':''}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ADMIN: SETTINGS
+══════════════════════════════════════ */
+function settingsPage(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">Settings</div></div></div>
+    <div class="settings-tabs">
+      ${['general','security','payment','cloudinary'].map(t=>`
+        <div class="st-tab${S.settingsTab===t?' active':''}" onclick="S.settingsTab='${t}';render()">${t.charAt(0).toUpperCase()+t.slice(1)}</div>
+      `).join('')}
+    </div>
+    ${S.settingsTab==='general'?`
+    <div class="form-card">
+      <div class="form-card-title">Platform Settings</div>
+      <div class="fgrid">
+        <div class="fg"><label>Platform Name</label><input type="text" value="CineBox"></div>
+        <div class="fg"><label>Support Email</label><input type="email" value="support@cinebox.io"></div>
+        <div class="fg"><label>Default Currency</label><select><option>USD ($)</option><option>KES (Ksh)</option><option>GHS (₵)</option><option>NGN (₦)</option></select></div>
+        <div class="fg"><label>Download Link Expiry</label><select><option>24 Hours</option><option>48 Hours</option><option>7 Days</option></select></div>
+        <div class="fg full"><label>Platform Tagline</label><input type="text" value="Africa's Premium Movie Streaming & Download Platform"></div>
+      </div>
+      <div class="form-footer"><button class="btn btn-primary">Save Changes</button><button class="btn btn-ghost">Reset</button></div>
+    </div>`:''}
+    ${S.settingsTab==='security'?`
+    <div class="form-card">
+      <div class="form-card-title">Security Settings</div>
+      <div class="fgrid">
+        <div class="fg"><label>Current Password</label><input type="password" placeholder="••••••••"></div>
+        <div class="fg"><label>New Password</label><input type="password" placeholder="••••••••"></div>
+        <div class="fg"><label>Confirm New Password</label><input type="password" placeholder="••••••••"></div>
+        <div class="fg"><label>Session Timeout</label><select><option>1 Hour</option><option>4 Hours</option><option>24 Hours</option></select></div>
+      </div>
+      <div class="form-footer"><button class="btn btn-danger"><i class="fas fa-key"></i> Update Password</button></div>
+    </div>`:''}
+    ${S.settingsTab==='payment'?`
+    <div class="form-card">
+      <div class="form-card-title">Payment Gateway (M-Pesa / Mobile Money)</div>
+      <div class="fgrid">
+        <div class="fg"><label>Daraja Consumer Key</label><input type="text" placeholder="Enter key..."></div>
+        <div class="fg"><label>Daraja Consumer Secret</label><input type="text" placeholder="Enter secret..."></div>
+        <div class="fg"><label>Business Shortcode</label><input type="text" placeholder="e.g. 174379"></div>
+        <div class="fg"><label>Passkey</label><input type="text" placeholder="Enter passkey..."></div>
+        <div class="fg full"><label>Callback URL</label><input type="text" value="https://cinebox.io/api/mpesa/callback"></div>
+      </div>
+      <div class="form-footer"><button class="btn btn-primary">Save Payment Config</button></div>
+    </div>`:''}
+    ${S.settingsTab==='cloudinary'?`
+    <div class="form-card">
+      <div class="form-card-title">Cloudinary Integration</div>
+      <div class="fgrid">
+        <div class="fg"><label>Cloud Name</label><input type="text" placeholder="your-cloud-name"></div>
+        <div class="fg"><label>API Key</label><input type="text" placeholder="Your API key"></div>
+        <div class="fg full"><label>API Secret</label><input type="text" placeholder="Your API secret"></div>
+        <div class="fg"><label>Upload Preset (Posters)</label><input type="text" placeholder="posters_unsigned"></div>
+        <div class="fg"><label>Upload Preset (Trailers)</label><input type="text" placeholder="trailers_unsigned"></div>
+      </div>
+      <div class="form-footer"><button class="btn btn-primary">Save Cloudinary Config</button><button class="btn btn-ghost">Test Connection</button></div>
+    </div>`:''}
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   DJ PANEL
+══════════════════════════════════════ */
+function djDashboard(){
+  const bars=[30,52,45,68,55,80,72];
+  const months=['Nov','Dec','Jan','Feb','Mar','Apr','May'];
+  return `<div class="page active">
+    <div class="hero-band">
+      <div class="hero-av">K</div>
+      <div class="hero-text"><h2>Welcome back, DJ Kinetic 👋</h2><p>Manage your uploads and track your earnings</p></div>
+      <div class="hero-actions"><button class="btn btn-primary" onclick="go('dj-upload')"><i class="fas fa-upload"></i> Upload Movie</button></div>
+    </div>
+    <div class="earn-row">
+      <div class="earn-card"><div class="earn-lbl">Total Earnings</div><div class="earn-val">$842.00</div><div class="earn-note">All time</div></div>
+      <div class="earn-card"><div class="earn-lbl">This Month</div><div class="earn-val">$248.00</div><div class="earn-note">May 2025</div></div>
+      <div class="earn-card"><div class="earn-lbl" >Movies Uploaded</div><div class="earn-val" style="color:var(--blue)">12</div><div class="earn-note">Total movies</div></div>
+    </div>
+    <div class="chart-box" style="margin-bottom:18px">
+      <div class="chart-head"><div class="chart-title">Monthly Earnings</div><div class="chart-sub">Last 7 months</div></div>
+      <div class="bar-track">${bars.map((h,i)=>`
+        <div class="bar-col">
+          <div class="bar-fill" style="height:${h}%;background:var(--blueDim);border-color:#4a9eff30" title="${months[i]}"></div>
+          <div class="bar-lbl">${months[i]}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="sec-title">My Latest Uploads</div>
+    <div class="movie-grid cols4">${MOVIES.filter(m=>m.dj==='DJ Kinetic').map(m=>movieCard(m)).join('')}</div>
+  </div>`;
+}
+
+function djUpload(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">Upload Movie</div><div class="page-sub">Add a new movie to your catalogue</div></div></div>
+    <div class="form-card">
+      <div class="form-card-title"><i class="fas fa-info-circle" style="color:var(--blue);margin-right:6px"></i>Movie Details</div>
+      <div class="fgrid">
+        <div class="fg"><label>Movie Title *</label><input type="text" placeholder="e.g. Midnight Protocol"></div>
+        <div class="fg"><label>Category *</label><select><option>Action</option><option>Sci-Fi</option><option>Drama</option><option>Thriller</option><option>Horror</option><option>Romance</option><option>Comedy</option></select></div>
+        <div class="fg"><label>Price (USD) *</label><input type="number" placeholder="4.99" step="0.01" min="0"></div>
+        <div class="fg"><label>Language</label><select><option>English</option><option>Swahili</option><option>Yoruba</option><option>Twi</option><option>French</option></select></div>
+        <div class="fg full"><label>Description *</label><textarea placeholder="Brief description of the movie (2-3 sentences)..."></textarea></div>
+        <div class="fg full"><label>Temporary Download Link *</label><input type="text" placeholder="https://drive.google.com/... (expires automatically)"></div>
+        <div class="fg"><label>Release Year</label><input type="number" placeholder="2025" min="1900" max="2030"></div>
+        <div class="fg"><label>Duration (minutes)</label><input type="number" placeholder="120"></div>
+      </div>
+    </div>
+    <div class="form-card">
+      <div class="form-card-title"><i class="fas fa-cloud-upload-alt" style="color:var(--green);margin-right:6px"></i>Media Upload (Cloudinary)</div>
+      <div class="fgrid">
+        <div class="fg">
+          <label>Movie Poster *</label>
+          <div class="upload-zone"><i class="fas fa-image"></i><p>Click to upload poster</p><span>JPG, PNG, WebP · max 5MB · recommended 400×600px</span></div>
+        </div>
+        <div class="fg">
+          <label>Trailer Video</label>
+          <div class="upload-zone"><i class="fas fa-video"></i><p>Click to upload trailer</p><span>MP4, MOV · max 200MB · 1-3 minutes</span></div>
+        </div>
+        <div class="fg full"><label>Or Paste YouTube Trailer URL</label><input type="text" placeholder="https://www.youtube.com/watch?v=..."></div>
+      </div>
+    </div>
+    <div class="form-footer">
+      <button class="btn btn-primary btn-lg"><i class="fas fa-upload"></i> Publish Movie</button>
+      <button class="btn btn-ghost">Save as Draft</button>
+    </div>
+  </div>`;
+}
+
+function djMovies(){
+  return `<div class="page active">
+    <div class="ph">
+      <div class="ph-left"><div class="page-title">My Movies</div><div class="page-sub">12 movies in your catalogue</div></div>
+      <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="go('dj-upload')"><i class="fas fa-plus"></i> Upload New</button></div>
+    </div>
+    <div class="movie-grid">
+      ${MOVIES.slice(0,6).map(m=>`
+        <div class="movie-card">
+          <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg},#050508)"><i class="fas fa-film"></i></div>
+          <div class="mc-info">
+            <div class="mc-title">${m.title}</div>
+            <div class="mc-foot"><div class="mc-price">${fmt(m.price)}</div><div class="mc-cat">${m.cat}</div></div>
+          </div>
+          <div style="padding:0 8px 8px;display:flex;gap:4px">
+            <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-edit"></i> Edit</button>
+            <button class="btn btn-danger btn-xs"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function djPayments(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">Earnings</div><div class="page-sub">Your revenue breakdown</div></div>
+      <div class="ph-right"><button class="btn btn-ghost btn-sm"><i class="fas fa-download"></i> Export</button></div>
+    </div>
+    <div class="earn-row">
+      <div class="earn-card"><div class="earn-lbl">Total Earned</div><div class="earn-val">$842.00</div><div class="earn-note">Platform takes 20%</div></div>
+      <div class="earn-card"><div class="earn-lbl">This Month</div><div class="earn-val">$248.00</div></div>
+      <div class="earn-card"><div class="earn-lbl">Pending Payout</div><div class="earn-val" style="color:var(--text2)">$124.00</div><div class="earn-note">Processes on 1st</div></div>
+    </div>
+    ${payTable(PAYMENTS.slice(0,5))}
+  </div>`;
+}
+
+function djNotifs(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">Notifications</div></div></div>
+    <div class="notif-list">${NOTIFS.map(n=>`
+      <div class="notif-item${n.unread?' unread':''}">
+        <div class="n-icon" style="background:${n.bg}"><i class="fas ${n.icon}" style="color:${n.ic}"></i></div>
+        <div class="n-body"><div class="n-msg">${n.msg}</div><div class="n-time">${n.time}</div></div>
+        ${n.unread?'<div class="n-dot"></div>':''}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   USER PANEL
+══════════════════════════════════════ */
+function userHome(){
+  const feat=MOVIES[0];
+  let filtered=S.searchQ
+    ?MOVIES.filter(m=>m.title.toLowerCase().includes(S.searchQ.toLowerCase()))
+    :MOVIES;
+  if(S.cat!=='All') filtered=filtered.filter(m=>m.cat===S.cat);
+  return `<div class="page active">
+    <div class="featured-wrap">
+      <div class="featured-img" style="background:linear-gradient(135deg,${feat.bg},#060612,#0a060f)">
+        <i class="fas fa-film" style="opacity:.06;font-size:80px"></i>
+      </div>
+      <div class="featured-overlay">
+        <div>
+          <div class="feat-tag">⭐ Featured This Week</div>
+          <div class="feat-title">${feat.title}</div>
+          <div class="feat-meta">
+            <span class="feat-pill"><i class="fas fa-tag" style="margin-right:4px;font-size:9px"></i>${feat.cat}</span>
+            <span class="feat-pill">by ${feat.dj}</span>
+            <span class="feat-pill" style="color:var(--accent);border-color:var(--accentBorder)">${fmt(feat.price)}</span>
+          </div>
+          <div class="feat-desc">${feat.desc}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary"><i class="fas fa-play"></i> Watch Trailer</button>
+            <button class="btn btn-ghost" onclick="buyMovie(${feat.id})">Buy · ${fmt(feat.price)}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      ${CATS.map(c=>`<div class="chip${S.cat===c?' on':''}" onclick="S.cat='${c}';render()">${c}</div>`).join('')}
+      <select class="sort-sel"><option>Latest</option><option>Popular</option><option>Price: Low</option></select>
+    </div>
+    <div class="sec-title">Browse Movies <span style="font-size:11px;color:var(--text3);font-weight:400;font-family:var(--font)">${filtered.length} titles</span></div>
+    ${S.gridMode==='grid'
+      ?`<div class="movie-grid">${filtered.map(m=>movieCard(m)).join('')}</div>`
+      :`<div class="movie-list">${filtered.map(m=>movieListItem(m)).join('')}</div>`
+    }
+  </div>`;
+}
+
+function myMoviesPage(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">My Movies</div><div class="page-sub">3 purchased movies</div></div></div>
+    <div class="movie-grid cols4">
+      ${MOVIES.slice(0,3).map(m=>`
+        <div class="movie-card">
+          <div class="mc-poster" style="background:linear-gradient(145deg,${m.bg},#050508)">
+            <i class="fas fa-film"></i>
+            <div style="position:absolute;top:6px;right:6px;background:var(--greenDim);border:1px solid #3ecb8a30;border-radius:5px;padding:2px 7px;font-size:9px;font-weight:700;color:var(--green)">OWNED</div>
+          </div>
+          <div class="mc-info">
+            <div class="mc-title">${m.title}</div>
+            <div class="mc-foot"><div class="mc-price">${fmt(m.price)}</div><div class="mc-cat">${m.cat}</div></div>
+          </div>
+          <div style="padding:0 8px 8px;display:flex;gap:4px">
+            <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-play"></i> Trailer</button>
+            <button class="btn btn-success btn-xs" style="flex:1" onclick="go('downloads')"><i class="fas fa-download"></i></button>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function downloadsPage(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">Downloads</div><div class="page-sub">Your purchase download links</div></div></div>
+    <div class="dl-success">
+      <i class="fas fa-circle-check"></i>
+      <p>Your download links are ready. Links expire 24 hours after purchase for security. Re-purchase to get a new link.</p>
+    </div>
+    <div class="tbl-card">
+      <table>
+        <thead><tr><th>Movie</th><th>Purchased</th><th>Link Status</th><th>Action</th></tr></thead>
+        <tbody>
+          ${MOVIES.slice(0,3).map((m,i)=>`
+            <tr>
+              <td class="td-main"><div style="display:flex;align-items:center;gap:8px">
+                <div style="width:36px;height:54px;border-radius:5px;background:linear-gradient(145deg,${m.bg},#050508);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text4);flex-shrink:0"><i class="fas fa-film"></i></div>
+                <div><div>${m.title}</div><div style="font-size:10px;color:var(--text3)">${m.cat} · ${m.dj}</div></div>
+              </div></td>
+              <td>${['May 1, 2025','Apr 30, 2025','Apr 28, 2025'][i]}</td>
+              <td>${i===0
+                ?`<span class="pill pill-amber"><i class="fas fa-clock"></i>Expires in 18h</span>`
+                :`<span class="pill pill-gray"><i class="fas fa-xmark"></i>Expired</span>`
+              }</td>
+              <td>
+                ${i===0
+                  ?`<button class="btn btn-success btn-sm"><i class="fas fa-download"></i> Download</button>`
+                  :`<button class="btn btn-primary btn-sm" onclick="buyMovie(${m.id})">Repurchase</button>`
+                }
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function userNotifs(){
+  return `<div class="page active">
+    <div class="ph"><div class="ph-left"><div class="page-title">Notifications</div></div></div>
+    <div class="notif-list">${NOTIFS.slice(0,4).map(n=>`
+      <div class="notif-item${n.unread?' unread':''}">
+        <div class="n-icon" style="background:${n.bg}"><i class="fas ${n.icon}" style="color:${n.ic}"></i></div>
+        <div class="n-body"><div class="n-msg">${n.msg}</div><div class="n-time">${n.time}</div></div>
+        ${n.unread?'<div class="n-dot"></div>':''}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   AUTH PAGES
+══════════════════════════════════════ */
+function buildLogin(){
+  return `<div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark">CB</div>
+        <div class="auth-logo-name">Cine<em>Box</em></div>
+      </div>
+      <div class="auth-h">Sign in to CineBox</div>
+      <div class="auth-s">Enter your email and password to continue</div>
+      <div class="auth-form">
+        <div class="fg"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
+        <div class="fg"><label>Password</label><input type="password" placeholder="••••••••"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+            <input type="checkbox" style="accent-color:var(--accent)"> Remember me
+          </label>
+          <span class="auth-link" style="font-size:12px" onclick="switchPortal('forgot')">Forgot password?</span>
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="switchPortal('admin');go('dashboard')">Sign In</button>
+        <div class="or-div">or continue as</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+          <button class="btn btn-ghost" style="justify-content:center" onclick="switchPortal('admin')"><i class="fas fa-shield-halved"></i> Admin</button>
+          <button class="btn btn-ghost" style="justify-content:center" onclick="switchPortal('dj')"><i class="fas fa-headphones"></i> DJ</button>
+          <button class="btn btn-ghost" style="justify-content:center" onclick="switchPortal('user')"><i class="fas fa-user"></i> User</button>
+        </div>
+        <div style="text-align:center;font-size:12px;color:var(--text2)">New here? <span class="auth-link" onclick="switchPortal('register')">Create account</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildRegister(){
+  return `<div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark">CB</div>
+        <div class="auth-logo-name">Cine<em>Box</em></div>
+      </div>
+      <div class="auth-h">Create Account</div>
+      <div class="auth-s">Join CineBox and start streaming today</div>
+      <div class="auth-form">
+        <div class="fg"><label>Full Name</label><input type="text" placeholder="Your full name"></div>
+        <div class="fg"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
+        <div class="fg"><label>Phone Number (optional)</label><input type="tel" placeholder="+254 700 000 000"></div>
+        <div class="fg"><label>Password</label><input type="password" placeholder="Min. 8 characters"></div>
+        <div class="fg"><label>Confirm Password</label><input type="password" placeholder="Repeat password"></div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="switchPortal('user');go('home')">Create Account</button>
+        <div style="text-align:center;font-size:12px;color:var(--text2)">Already have an account? <span class="auth-link" onclick="switchPortal('login')">Sign in</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildForgot(){
+  return `<div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark">CB</div>
+        <div class="auth-logo-name">Cine<em>Box</em></div>
+      </div>
+      <div class="auth-h">Reset Password</div>
+      <div class="auth-s">Enter your email and we'll send a reset link</div>
+      <div class="auth-form">
+        <div class="fg"><label>Email Address</label><input type="email" placeholder="you@email.com"></div>
+        <button class="btn btn-primary btn-block btn-lg"><i class="fas fa-paper-plane"></i> Send Reset Link</button>
+        <div style="text-align:center;font-size:12px;color:var(--text2)"><span class="auth-link" onclick="switchPortal('login')"><i class="fas fa-arrow-left" style="font-size:11px"></i> Back to Sign In</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   PAYMENT PAGE
+══════════════════════════════════════ */
+function buildPaymentPage(){
+  const m=MOVIES.find(x=>x.id===S.buyMovieId)||MOVIES[0];
+  const methods=[
+    {icon:'fa-mobile-screen-button',label:'M-Pesa',sub:'Safaricom mobile money'},
+    {icon:'fa-mobile-screen-button',label:'Airtel Money',sub:'Airtel mobile money'},
+    {icon:'fa-credit-card',label:'Card Payment',sub:'Visa, Mastercard, Amex'},
+  ];
+  return `<div class="pay-wrap">
+    <button class="btn btn-ghost btn-sm" onclick="S.portal=S.prevPortal||'user';go('home')"><i class="fas fa-arrow-left"></i> Back to browsing</button>
+    <div class="pay-card">
+      <div class="pay-h">Complete Purchase</div>
+      <div class="pay-s">Secure checkout · Download access for 24 hours</div>
+      <div class="pay-amount-box">
+        <div class="pay-amount-lbl">Total Amount</div>
+        <div class="pay-amount-val">${fmt(m.price)}</div>
+        <div class="pay-movie">${m.title} · ${m.cat}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Select payment method:</div>
+      <div class="pay-methods">
+        ${methods.map((mt,i)=>`
+          <div class="pay-method${S.payMethod===i?' sel':''}" onclick="S.payMethod=${i};render()">
+            <div class="pay-m-icon"><i class="fas ${mt.icon}"></i></div>
+            <div>
+              <div class="pay-m-name">${mt.label}</div>
+              <div style="font-size:10px;color:var(--text3)">${mt.sub}</div>
+            </div>
+            ${S.payMethod===i?`<i class="fas fa-circle-check" style="margin-left:auto;color:var(--accent)"></i>`:''}
+          </div>`).join('')}
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="switchPortal('user');go('downloads')">
+        <i class="fas fa-lock"></i> Pay ${fmt(m.price)} Securely
+      </button>
+      <div class="pay-note"><i class="fas fa-shield-halved" style="color:var(--green);margin-right:4px"></i>256-bit encrypted · Download link sent instantly after payment</div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   ACTIONS
+══════════════════════════════════════ */
+function go(page){
+  S.page=page;
+  render();
+  document.querySelector('.content-area')?.scrollTo(0,0);
+}
+
+function switchPortal(portal){
+  S.prevPortal=S.portal;
+  S.portal=portal;
+  const defaults={admin:'dashboard',dj:'dj-dashboard',user:'home',login:'',register:'',forgot:'',payment:''};
+  if(defaults[portal]!==undefined) S.page=defaults[portal];
+  render();
+}
+
+function toggleSidebar(){
+  S.collapsed=!S.collapsed;
+  const sb=document.getElementById('sidebar');
+  if(sb) sb.classList.toggle('collapsed');
+}
+
+function buyMovie(id){
+  S.buyMovieId=id;
+  S.prevPortal=S.portal;
+  S.portal='payment';
+  render();
+}
+
+function openMovieDetail(id){
+  // Stub – would open movie detail modal/page
+  console.log('Open movie',id);
+}
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+render();
+</script>
+</body>
+</html>
