@@ -404,8 +404,8 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 /* ══════════════════════════════════════
    CONFIG
 ══════════════════════════════════════ */
-const SUPABASE_URL = 'https://hffxtgbplxntwtdvahpu.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmZnh0Z2JwbHhudHd0ZHZhaHB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjA5OTYsImV4cCI6MjA5MzgzNjk5Nn0.s1Wl4Em8tlVdZXtHDSNLLbcavJ69w_LYwj-YcwoywKM';
+const SUPABASE_URL = 'https://midetcrkkiupxcvgxhvv.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pZGV0Y3Jra2l1cHhjdmd4aHZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNDY5NzEsImV4cCI6MjA5MzkyMjk3MX0.EN-FvasZ3WFsRnlPb54hIefNnQdDTEB8uJQph0rAs8k';
 const CLOUD_NAME   = 'dzhxcmqby';
 const CLOUD_PRESET_POSTERS  = 'cinebox_posters';
 const CLOUD_PRESET_TRAILERS = 'cinebox_trailers';
@@ -899,7 +899,10 @@ function buildShell(){
           <div class="user-name-t">${uname}</div>
           <div class="user-role-t">${uroleLabel}</div>
         </div>
-      </div>` : `
+      </div>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="doLogout()" style="margin-top:8px">
+        <i class="fas fa-sign-out-alt"></i>Log Out
+      </button>` : `
       <div class="user-chip" onclick="openModal('login')" style="justify-content:center">
         <div class="user-av" style="background:var(--bg4);color:var(--text3)"><i class="fas fa-user"></i></div>
         <div class="user-meta"><div class="user-name-t">Not signed in</div><div class="user-role-t" style="color:var(--text3)">Guest</div></div>
