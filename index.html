@@ -397,6 +397,7 @@ tbody tr:hover td{background:var(--bg3);color:var(--text)}
 
 <!-- AUTH MODAL (replaces full-page auth) -->
 <div id="auth-modal" style="display:none"></div>
+<div id="dj-modal" style="display:none"></div>
 
 <div id="app"></div>
 
@@ -515,6 +516,80 @@ function renderModal(){
   m.innerHTML = `<div class="modal-card">${content}</div>`;
   // Click outside to close
   m.onclick = (e)=>{ if(e.target===m) closeModal(); };
+}
+
+function inviteDJ(){
+  S.djModalOpen = true;
+  S.djForm = {name:'',email:'',phone:''};
+  renderDJModal();
+}
+
+function closeDJModal(){
+  S.djModalOpen = false;
+  const m = document.getElementById('dj-modal');
+  if(m) m.style.display='none';
+}
+
+function renderDJModal(){
+  const m = document.getElementById('dj-modal');
+  if(!m) return;
+  if(!S.djModalOpen){ m.style.display='none'; return; }
+  m.style.display='flex';
+  m.style.cssText='position:fixed;inset:0;background:#000000b0;backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s ease;';
+  m.innerHTML = `
+    <div class="modal-card" style="max-width:420px; width:100%;">
+      <div class="modal-close" onclick="closeDJModal()"><i class="fas fa-xmark"></i></div>
+      <div class="auth-logo">
+        <div class="logo-mark">CB</div>
+        <div class="auth-logo-name">Cine<em>Box</em></div>
+      </div>
+      <div class="auth-h">Register New DJ</div>
+      <div class="auth-s">Create a new DJ partner account with admin privileges.</div>
+      <div id="dj-error" class="err-box"></div>
+      <div class="auth-form">
+        <div class="fg"><label>DJ Name</label><input type="text" id="dj-name-input" placeholder="DJ Kinetic"></div>
+        <div class="fg"><label>Email Address</label><input type="email" id="dj-email-input" placeholder="dj@example.com"></div>
+        <div class="fg"><label>Phone Number</label><input type="tel" id="dj-phone-input" placeholder="+255 700 000 000"></div>
+        <div class="form-footer">
+          <button class="btn btn-ghost btn-sm" onclick="closeDJModal()">Cancel</button>
+          <button id="dj-add-btn" class="btn btn-primary btn-sm" onclick="submitAddDJ()"><i class="fas fa-user-plus"></i> Register DJ</button>
+        </div>
+      </div>
+    </div>`;
+  m.querySelector('#dj-name-input').value = S.djForm.name || '';
+  m.querySelector('#dj-email-input').value = S.djForm.email || '';
+  m.querySelector('#dj-phone-input').value = S.djForm.phone || '';
+  m.onclick = (e)=>{ if(e.target===m) closeDJModal(); };
+}
+
+async function submitAddDJ(){
+  const name = document.getElementById('dj-name-input')?.value.trim()||'';
+  const email = document.getElementById('dj-email-input')?.value.trim()||'';
+  const phone = document.getElementById('dj-phone-input')?.value.trim()||'';
+  const errorEl = document.getElementById('dj-error');
+  if(errorEl){errorEl.classList.remove('show');}
+  if(!name||!email){
+    if(errorEl){errorEl.textContent='Please enter the DJ name and email';errorEl.classList.add('show');}
+    return;
+  }
+  const btn = document.getElementById('dj-add-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Registering...';}
+  try {
+    const {data,error} = await sb.from('profiles').insert({name,email,phone,role:'dj',status:'active'}).select().single();
+    if(error){
+      throw error;
+    }
+    const newDj = data || {id:Date.now(),name,email,phone,status:'active',created_at:new Date().toISOString()};
+    S.dbDJs = [newDj, ...(S.dbDJs||[])];
+    toast('DJ partner registered successfully!','success');
+    closeDJModal();
+    render();
+  } catch(err){
+    if(errorEl){errorEl.textContent = err.message || 'Failed to register DJ'; errorEl.classList.add('show');}
+    toast('DJ registration failed','error');
+  } finally {
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i> Register DJ';}
+  }
 }
 
 function modalLogin(){
@@ -820,9 +895,10 @@ function openCloudinaryUpload(type){
 function render(){
   const app=document.getElementById('app');
   if(!app) return;
-  if(S.portal==='payment'){app.innerHTML=buildPaymentPage();return}
-  if(S.portal==='loading'){app.innerHTML='';return}
+  if(S.portal==='payment'){app.innerHTML=buildPaymentPage();renderDJModal();return}
+  if(S.portal==='loading'){app.innerHTML='';renderDJModal();return}
   app.innerHTML=buildShell();
+  renderDJModal();
 }
 
 /* ══════════════════════════════════════
@@ -1651,10 +1727,6 @@ async function sendBroadcast(){
   const {error}=await sb.from('notifications').insert({sender_id:S.currentUser?.id,title,message:msg,target_role:target,priority});
   if(error){toast('Failed: '+error.message,'error');return}
   toast('Notification sent!','success');
-}
-
-function inviteDJ(){
-  toast('To add a DJ: have them sign up, then update their role to "dj" in the Supabase profiles table.','info');
 }
 
 async function submitMovie(){
