@@ -683,11 +683,23 @@ function modalForgot(){
 ══════════════════════════════════════ */
 async function initAuth(){
   showLoader();
-  const {data:{session}} = await sb.auth.getSession();
-  if(session){
-    S.currentUser = session.user;
-    await loadProfile();
-  } else {
+  try {
+    const {data:{session}, error} = await sb.auth.getSession();
+    if(error){
+      console.error('Supabase getSession failed', error);
+      toast('Unable to connect to Supabase. Check your network.','error');
+      S.portal = 'guest';
+      S.page = 'home';
+    } else if(session){
+      S.currentUser = session.user;
+      await loadProfile();
+    } else {
+      S.portal = 'guest';
+      S.page = 'home';
+    }
+  } catch(err){
+    console.error('Auth initialization error', err);
+    toast('Unable to initialize authentication.','error');
     S.portal = 'guest';
     S.page = 'home';
   }
@@ -712,19 +724,37 @@ async function initAuth(){
 }
 
 async function loadProfile(){
-  if(!S.currentUser) return;
-  const {data,error} = await sb.from('profiles').select('*').eq('id',S.currentUser.id).single();
-  if(data){
-    S.profile = data;
-    const rolePortal = {admin:'admin',dj:'dj',user:'user'};
-    S.portal = rolePortal[data.role] || 'user';
-    S.page = {admin:'dashboard',dj:'dj-dashboard',user:'home'}[S.portal];
-    await loadData();
-  } else {
-    const name = S.currentUser.user_metadata?.name || S.currentUser.email.split('@')[0];
-    await sb.from('profiles').insert({id:S.currentUser.id,name,email:S.currentUser.email,role:'user',status:'active'});
-    S.profile = {name,email:S.currentUser.email,role:'user',status:'active'};
-    S.portal = 'user';
+  if(!S.currentUser || !S.currentUser.id) return;
+  try {
+    const {data,error} = await sb.from('profiles').select('*').eq('id',S.currentUser.id).single();
+    if(error){
+      console.error('Failed to load profile', error);
+      toast('Unable to load profile data.','error');
+      S.portal = 'guest';
+      S.page = 'home';
+      return;
+    }
+    if(data){
+      S.profile = data;
+      const rolePortal = {admin:'admin',dj:'dj',user:'user'};
+      S.portal = rolePortal[data.role] || 'user';
+      S.page = {admin:'dashboard',dj:'dj-dashboard',user:'home'}[S.portal];
+      await loadData();
+    } else {
+      const name = S.currentUser.user_metadata?.name || S.currentUser.email.split('@')[0];
+      const {error:insertError} = await sb.from('profiles').insert({id:S.currentUser.id,name,email:S.currentUser.email,role:'user',status:'active'});
+      if(insertError){
+        console.error('Failed to create profile fallback', insertError);
+        toast('Unable to create profile record.','error');
+      }
+      S.profile = {name,email:S.currentUser.email,role:'user',status:'active'};
+      S.portal = 'user';
+      S.page = 'home';
+    }
+  } catch(err){
+    console.error('Profile load exception', err);
+    toast('Profile request failed. Check your network.','error');
+    S.portal = 'guest';
     S.page = 'home';
   }
 }
@@ -815,29 +845,54 @@ function submitModalForgot(){
    DATA LOADING
 ══════════════════════════════════════ */
 async function loadData(){
-  const {data:moviesData} = await sb.from('movies').select('*,profiles(name)').eq('status','published').order('created_at',{ascending:false});
-  if(moviesData && moviesData.length>0){
-    S.dbMovies = moviesData.map(m=>({
-      ...m, dj_name:m.profiles?.name||'Unknown DJ',
-      cat:m.category_id||m.cat||'Action',
-      bg:bgForCat(m.category_id||m.cat||'Action'),
-      badge:m.featured?'new':'',
-    }));
-    MOVIES = S.dbMovies;
+  try {
+    const {data:moviesData,error:movieError} = await sb.from('movies').select('*,profiles(name)').eq('status','published').order('created_at',{ascending:false});
+    if(movieError){
+      console.error('Failed to load movies', movieError);
+      toast('Unable to load movies.','error');
+    } else if(moviesData && moviesData.length>0){
+      S.dbMovies = moviesData.map(m=>({
+        ...m, dj_name:m.profiles?.name||'Unknown DJ',
+        cat:m.category_id||m.cat||'Action',
+        bg:bgForCat(m.category_id||m.cat||'Action'),
+        badge:m.featured?'new':'',
+      }));
+      MOVIES = S.dbMovies;
+    }
+  } catch(err){
+    console.error('Movies load exception', err);
+    toast('Movie request failed.','error');
   }
+
   if(S.profile?.role==='admin'){
-    const {data:users} = await sb.from('profiles').select('*').eq('role','user');
-    const {data:djs}   = await sb.from('profiles').select('*').eq('role','dj');
-    const {data:pays}  = await sb.from('payments').select('*,profiles!user_id(name),movies(title)').order('created_at',{ascending:false}).limit(50);
-    if(users) S.dbUsers=users;
-    if(djs)   S.dbDJs=djs;
-    if(pays)  S.dbPayments=pays.map(p=>({...p,user:p.profiles?.name||'Unknown',movie:p.movies?.title||'Unknown',dj:'—',id:'#P'+p.id?.slice(0,5).toUpperCase()}));
+    try {
+      const {data:users,error:userError} = await sb.from('profiles').select('*').eq('role','user');
+      const {data:djs,error:djError}   = await sb.from('profiles').select('*').eq('role','dj');
+      const {data:pays,error:payError}  = await sb.from('payments').select('*,profiles!user_id(name),movies(title)').order('created_at',{ascending:false}).limit(50);
+      if(userError){ console.error('Failed to load users', userError); toast('Unable to load users.','error'); }
+      if(djError){ console.error('Failed to load DJs', djError); toast('Unable to load DJs.','error'); }
+      if(payError){ console.error('Failed to load payments', payError); toast('Unable to load payments.','error'); }
+      if(users) S.dbUsers=users;
+      if(djs)   S.dbDJs=djs;
+      if(pays)  S.dbPayments=pays.map(p=>({...p,user:p.profiles?.name||'Unknown',movie:p.movies?.title||'Unknown',dj:'—',id:'#P'+p.id?.slice(0,5).toUpperCase()}));
+    } catch(err){
+      console.error('Admin data load exception', err);
+      toast('Unable to load admin dashboard data.','error');
+    }
   }
+
   if(S.profile?.role==='dj'){
-    const {data:myMovs} = await sb.from('movies').select('*').eq('dj_id',S.currentUser.id).order('created_at',{ascending:false});
-    if(myMovs) S.dbMovies=myMovs;
-    const {data:myPays} = await sb.from('payments').select('*,profiles!user_id(name),movies(title)').eq('dj_id',S.currentUser.id);
-    if(myPays) S.dbPayments=myPays.map(p=>({...p,user:p.profiles?.name||'Unknown',movie:p.movies?.title||'Unknown',id:'#P'+p.id?.slice(0,5).toUpperCase()}));
+    try {
+      const {data:myMovs,error:myMovsError} = await sb.from('movies').select('*').eq('dj_id',S.currentUser.id).order('created_at',{ascending:false});
+      if(myMovsError){ console.error('Failed to load DJ movies', myMovsError); toast('Unable to load your movies.','error'); }
+      else if(myMovs) S.dbMovies=myMovs;
+      const {data:myPays,error:myPaysError} = await sb.from('payments').select('*,profiles!user_id(name),movies(title)').eq('dj_id',S.currentUser.id);
+      if(myPaysError){ console.error('Failed to load DJ payments', myPaysError); toast('Unable to load your earnings.','error'); }
+      else if(myPays) S.dbPayments=myPays.map(p=>({...p,user:p.profiles?.name||'Unknown',movie:p.movies?.title||'Unknown',id:'#P'+p.id?.slice(0,5).toUpperCase()}));
+    } catch(err){
+      console.error('DJ data load exception', err);
+      toast('Unable to load DJ dashboard data.','error');
+    }
   }
 }
 
@@ -872,21 +927,38 @@ async function recordPayment(movieId){
    CLOUDINARY
 ══════════════════════════════════════ */
 function openCloudinaryUpload(type){
+  if(!window.cloudinary || typeof window.cloudinary.openUploadWidget !== 'function'){
+    toast('Cloudinary upload widget is not available.','error');
+    return;
+  }
   const preset = type==='poster'?CLOUD_PRESET_POSTERS:CLOUD_PRESET_TRAILERS;
   const resourceType = type==='trailer'?'video':'image';
-  window.cloudinary.openUploadWidget({
-    cloudName:CLOUD_NAME,uploadPreset:preset,sources:['local','url','camera'],
-    resourceType,maxFiles:1,
-    styles:{palette:{window:'#0e0e18',tabIcon:'#e8a020',link:'#e8a020',action:'#e8a020',inactiveTabIcon:'#9090b0',windowBorder:'#1e1e2e',menuIcons:'#9090b0',text:'#f0f0f8',error:'#e05555',inProgress:'#e8a020',complete:'#3ecb8a',sourceBg:'#141420'}},
-  },(error,result)=>{
-    if(error){toast('Upload error: '+error.statusText,'error');return}
-    if(result.event==='success'){
-      const url=result.info.secure_url;
-      if(type==='poster'){S.posterUrl=url;toast('Poster uploaded!','success')}
-      else{S.trailerUrl=url;toast('Trailer uploaded!','success')}
-      render();
-    }
-  });
+  try {
+    window.cloudinary.openUploadWidget({
+      cloudName:CLOUD_NAME,uploadPreset:preset,sources:['local','url','camera'],
+      resourceType,maxFiles:1,
+      styles:{palette:{window:'#0e0e18',tabIcon:'#e8a020',link:'#e8a020',action:'#e8a020',inactiveTabIcon:'#9090b0',windowBorder:'#1e1e2e',menuIcons:'#9090b0',text:'#f0f0f8',error:'#e05555',inProgress:'#e8a020',complete:'#3ecb8a',sourceBg:'#141420'}},
+    },(error,result)=>{
+      if(error){
+        console.error('Cloudinary upload error', error);
+        toast('Upload error: '+(error.message||error.statusText||'Check Cloudinary settings.'),'error');
+        return;
+      }
+      if(result?.event==='success'){
+        const url=result.info?.secure_url;
+        if(url){
+          if(type==='poster'){S.posterUrl=url;toast('Poster uploaded!','success')}
+          else{S.trailerUrl=url;toast('Trailer uploaded!','success')}
+          render();
+        } else {
+          toast('Upload completed but no URL returned.','error');
+        }
+      }
+    });
+  } catch(err){
+    console.error('Cloudinary widget exception', err);
+    toast('Cloudinary upload failed to start.','error');
+  }
 }
 
 /* ══════════════════════════════════════
